@@ -1,129 +1,141 @@
-// src/components/layout/Sidebar.tsx
-
 'use client'
 
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
-import {
-  LayoutDashboard,
-  Package,
-  Warehouse,
-  Utensils,
+import { 
+  LayoutDashboard, 
+  Package, 
+  Warehouse, 
+  Users, 
   ShoppingCart,
+  Utensils,
+  Table,
+  Settings,
   LogOut,
-  User,
-  X,
-  Building2
+  Menu,
+  X
 } from 'lucide-react'
-
-interface SidebarProps {
-  onClose?: () => void
-}
+import { cn } from '@/lib/utils'
 
 const menuItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/dashboard/inventory', label: 'Inventario', icon: Package },
-  { href: '/dashboard/recipes', label: 'Recetas', icon: Utensils },
-  { href: '/dashboard/tables', label: 'Mesas', icon: Warehouse },
-  { href: '/dashboard/orders', label: 'Pedidos', icon: ShoppingCart },
+  { href: '/products', label: 'Productos', icon: Package },
+  { href: '/inventory', label: 'Inventario', icon: Warehouse },
+  { href: '/tables', label: 'Mesas', icon: Table },
+  { href: '/recipes', label: 'Recetas', icon: Utensils },
+  { href: '/orders', label: 'Pedidos', icon: ShoppingCart },
+  { href: '/clients', label: 'Clientes', icon: Users },
+  { href: '/settings', label: 'Configuración', icon: Settings },
 ]
 
-export function Sidebar({ onClose }: SidebarProps) {
-  const { data: session } = useSession()
+export function Sidebar() {
   const pathname = usePathname()
+  const { data: session } = useSession()
+  const [isMobileOpen, setIsMobileOpen] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
 
-  // ✅ Si no hay sesión, mostrar sidebar vacío
-  if (!session) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="animate-pulse text-center">
-          <div className="h-8 w-8 rounded-full border-2 border-blue-600 border-t-transparent animate-spin mx-auto" />
-          <p className="mt-2 text-xs text-gray-400">Cargando...</p>
-        </div>
-      </div>
-    )
-  }
+  // Detectar si es móvil
+  useEffect(() => {
+    const checkScreen = () => {
+      setIsMobile(window.innerWidth < 1024)
+      if (window.innerWidth >= 1024) {
+        setIsMobileOpen(true)
+      } else {
+        setIsMobileOpen(false)
+      }
+    }
+    checkScreen()
+    window.addEventListener('resize', checkScreen)
+    return () => window.removeEventListener('resize', checkScreen)
+  }, [])
 
-  const handleClose = () => {
-    if (onClose) onClose()
-  }
+  // Cerrar el menú al navegar
+  useEffect(() => {
+    if (isMobile) {
+      setIsMobileOpen(false)
+    }
+  }, [pathname, isMobile])
+
+  const userName = session?.user?.name || 'Usuario'
+  const userRole = session?.user?.role || ''
 
   return (
-    <div className="flex flex-col h-full bg-white">
-      {/* Brand */}
-      <div className="flex items-center justify-between px-5 h-16 border-b border-slate-200">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white">
-            <Building2 className="h-5 w-5" />
-          </div>
-          <div>
-            <h1 className="text-sm font-bold text-slate-900">Restaurante</h1>
-            <p className="text-[10px] text-slate-400">Sistema de gestión</p>
-          </div>
-        </div>
-        <button
-          onClick={handleClose}
-          className="lg:hidden p-2 hover:bg-slate-100 rounded-lg transition-colors"
-        >
-          <X className="h-4 w-4 text-slate-400" />
-        </button>
-      </div>
+    <>
+      {/* ✅ Botón hamburguesa - solo visible en móvil */}
+      <button
+        onClick={() => setIsMobileOpen(!isMobileOpen)}
+        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors"
+        aria-label="Toggle menu"
+      >
+        {isMobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+      </button>
 
-      {/* Menú */}
-      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
-        {menuItems.map((item) => {
-          const Icon = item.icon
-          const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
+      {/* ✅ Overlay para móvil */}
+      {isMobileOpen && isMobile && (
+        <div
+          className="lg:hidden fixed inset-0 bg-black/50 z-40"
+          onClick={() => setIsMobileOpen(false)}
+        />
+      )}
 
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={handleClose}
-              className={`
-                flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium
-                transition-all duration-200
-                ${isActive
-                  ? 'bg-blue-50 text-blue-700'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                }
-              `}
-            >
-              <Icon className={`h-5 w-5 ${isActive ? 'text-blue-600' : 'text-slate-400'}`} />
-              <span>{item.label}</span>
-              {isActive && (
-                <span className="ml-auto h-1.5 w-1.5 rounded-full bg-blue-600" />
-              )}
-            </Link>
-          )
-        })}
-      </nav>
-
-      {/* Usuario y Logout */}
-      <div className="border-t border-slate-200 p-4 space-y-3">
-        <div className="flex items-center gap-3 px-2 py-2 rounded-xl bg-slate-50">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 text-blue-600">
-            <User className="h-4 w-4" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-slate-800 truncate">
-              {session.user?.name || 'Usuario'}
-            </p>
-            <p className="text-xs text-slate-400 truncate">
-              {session.user?.role || 'Sin rol'}
-            </p>
-          </div>
+      {/* ✅ Sidebar */}
+      <aside
+        className={cn(
+          "w-64 bg-slate-900 text-white h-full p-4 flex flex-col fixed left-0 top-0 z-50 transition-transform duration-300 ease-in-out",
+          isMobileOpen || !isMobile ? "translate-x-0" : "-translate-x-full",
+          isMobile ? "w-72" : "w-64"
+        )}
+      >
+        <div className="mb-8">
+          <h1 className="text-xl font-bold">Restaurant</h1>
+          <p className="text-sm text-slate-400">Sistema de gestión</p>
         </div>
 
-        <button
-          onClick={() => signOut({ callbackUrl: '/login' })}
-          className="flex items-center justify-center w-full gap-2 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-xl transition-colors"
-        >
-          <LogOut className="h-4 w-4" />
-          Cerrar sesión
-        </button>
-      </div>
-    </div>
+        <nav className="flex-1 space-y-1 overflow-y-auto">
+          {menuItems.map((item) => {
+            const Icon = item.icon
+            const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
+            
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => isMobile && setIsMobileOpen(false)}
+                className={cn(
+                  'flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-colors',
+                  isActive
+                    ? 'bg-blue-600 text-white'
+                    : 'hover:bg-slate-800'
+                )}
+              >
+                <Icon className="h-5 w-5" />
+                <span>{item.label}</span>
+              </Link>
+            )
+          })}
+        </nav>
+
+        <div className="border-t border-slate-800 pt-4 mt-4">
+          <div className="flex items-center space-x-3 px-3 py-2">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-sm font-bold">
+              {userName.charAt(0).toUpperCase()}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate">{userName}</p>
+              <p className="text-xs text-slate-400 truncate">{userRole}</p>
+            </div>
+          </div>
+          <button
+            onClick={() => signOut({ callbackUrl: '/login' })}
+            className="flex items-center space-x-3 px-3 py-2.5 w-full rounded-lg text-red-400 hover:bg-red-900/20 transition-colors"
+          >
+            <LogOut className="h-5 w-5" />
+            <span>Cerrar sesión</span>
+          </button>
+        </div>
+      </aside>
+    </>
   )
 }
