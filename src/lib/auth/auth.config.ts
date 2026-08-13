@@ -24,6 +24,9 @@ declare module "next-auth" {
   }
 }
 
+// ✅ Detectar si estamos en producción
+const isProduction = process.env.NODE_ENV === "production";
+
 export const authOptions: NextAuthOptions = {
   pages: {
     signIn: "/login",
@@ -57,5 +60,21 @@ export const authOptions: NextAuthOptions = {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 días
   },
+  // ✅ CONFIGURACIÓN CRÍTICA PARA PRODUCCIÓN
+  useSecureCookies: isProduction, // ✅ Esto es lo que faltaba
+  cookies: {
+    sessionToken: {
+      name: isProduction 
+        ? "__Secure-next-auth.session-token" 
+        : "next-auth.session-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: isProduction,
+      },
+    },
+  },
   secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
+  debug: !isProduction, // Debug solo en desarrollo
 };

@@ -6,6 +6,12 @@ import { authOptions } from "./auth.config";
 import { prisma } from "@/lib/db/prisma-client";
 import bcrypt from "bcryptjs";
 
+// ✅ Agregar logging para depurar
+console.log("🔧 [Auth] Inicializando...");
+console.log("🔧 [Auth] NODE_ENV:", process.env.NODE_ENV);
+console.log("🔧 [Auth] NEXTAUTH_URL:", process.env.NEXTAUTH_URL);
+console.log("🔧 [Auth] NEXTAUTH_SECRET:", process.env.NEXTAUTH_SECRET ? "✅ Configurado" : "❌ FALTANTE");
+
 const handler = NextAuth({
   ...authOptions,
   providers: [
@@ -16,6 +22,8 @@ const handler = NextAuth({
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
+        console.log("🔐 [Auth] authorize() llamado");
+
         if (!credentials?.email || !credentials?.password) {
           console.log("❌ [Auth] Credenciales faltantes");
           return null;
@@ -25,9 +33,8 @@ const handler = NextAuth({
         const password = credentials.password as string;
 
         try {
-          console.log(`🔐 [Auth] Intentando login: ${email}`);
+          console.log(`🔐 [Auth] Buscando usuario: ${email}`);
 
-          // 1. Buscar el usuario
           const user = await prisma.user.findUnique({
             where: { email },
             include: { 
@@ -36,13 +43,16 @@ const handler = NextAuth({
             },
           });
 
+          console.log(`🔐 [Auth] Usuario encontrado: ${!!user}`);
+
           if (!user || !user.password) {
-            console.log(`❌ [Auth] Usuario no encontrado: ${email}`);
+            console.log(`❌ [Auth] Usuario no encontrado o sin password: ${email}`);
             return null;
           }
 
-          // 2. Validar contraseña
+          console.log(`🔐 [Auth] Verificando contraseña...`);
           const passwordsMatch = await bcrypt.compare(password, user.password);
+          console.log(`🔐 [Auth] Contraseña válida: ${passwordsMatch}`);
 
           if (!passwordsMatch) {
             console.log(`❌ [Auth] Contraseña incorrecta: ${email}`);
@@ -51,7 +61,6 @@ const handler = NextAuth({
 
           console.log(`✅ [Auth] Login exitoso: ${email}`);
 
-          // 3. Retornar el objeto mapeado
           return {
             id: user.id,
             email: user.email,
@@ -62,7 +71,7 @@ const handler = NextAuth({
             permissions: user.permissions || [],
           };
         } catch (error) {
-          console.error("❌ [Auth] Error en authorize:", error);
+          console.error("❌ [Auth] Error:", error);
           return null;
         }
       },
@@ -71,6 +80,7 @@ const handler = NextAuth({
   callbacks: {
     ...authOptions.callbacks,
     async signIn({ user, account, profile, email, credentials }) {
+      console.log("🔐 [Auth] signIn callback:", user?.email);
       return true;
     },
   },

@@ -8,9 +8,6 @@ export default withAuth(
     const token = req.nextauth.token;
     const path = req.nextUrl.pathname;
 
-    console.log("🔍 [Middleware] Path:", path);
-    console.log("🔍 [Middleware] Token existe:", !!token);
-
     // Rutas públicas
     const publicPaths = [
       '/login',
@@ -21,6 +18,7 @@ export default withAuth(
       '/api/auth/signin',
       '/api/auth/error',
       '/api/test-db',
+      '/api/auth/check-cookie',
     ];
     
     const isPublicPath = publicPaths.some(p => path.startsWith(p));
@@ -30,11 +28,9 @@ export default withAuth(
     }
 
     if (!token) {
-      console.log("🔴 [Middleware] Redirigiendo a login");
       return NextResponse.redirect(new URL('/login', req.url));
     }
 
-    console.log("✅ [Middleware] Acceso permitido");
     return NextResponse.next();
   },
   {
