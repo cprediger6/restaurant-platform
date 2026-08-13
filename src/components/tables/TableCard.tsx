@@ -2,116 +2,116 @@
 
 'use client'
 
-import { Table, TableStatus, Diner } from '@prisma/client'
+import { Card, CardContent } from '@/components/ui/Card'
+import { Button } from '@/components/ui/Button'
 import { Users, Utensils, User } from 'lucide-react'
-import { Card, CardContent } from '@/components/ui/Card'  // ✅ Usando Card.tsx
-import { Button } from '@/components/ui/Button'           // ✅ Usando Button.tsx
 import { useRouter } from 'next/navigation'
 
-interface TableCardProps {
-  table: Table & {
-    diners: Diner[]
-  }
-  onAddDiner?: (tableId: string) => void
-}
-
-const statusColors = {
-  AVAILABLE: 'bg-green-100 border-green-500 text-green-700',
-  OCCUPIED: 'bg-yellow-100 border-yellow-500 text-yellow-700',
-  PARTIALLY_CLOSED: 'bg-orange-100 border-orange-500 text-orange-700',
-  CLOSED: 'bg-red-100 border-red-500 text-red-700'
-}
-
-const statusLabels = {
-  AVAILABLE: 'Disponible',
-  OCCUPIED: 'Ocupada',
-  PARTIALLY_CLOSED: 'Cerrada Parcial',
-  CLOSED: 'Cerrada'
-}
-
-export function TableCard({ table, onAddDiner }: TableCardProps) {
+export function TableCard({ table, onAddDiner }: any) {
   const router = useRouter()
-  const activeDiners = table.diners.filter(d => d.active)
-  const isAvailable = table.status === TableStatus.AVAILABLE
-  const isOccupied = table.status === TableStatus.OCCUPIED || table.status === TableStatus.PARTIALLY_CLOSED
+  const activeDiners = table.diners.filter((d: any) => d.active)
+  const isAvailable = table.status === 'AVAILABLE'
 
-  const handleClick = () => {
+  const statusColors: Record<string, string> = {
+    AVAILABLE: 'border-green-500 bg-green-50',
+    OCCUPIED: 'border-yellow-500 bg-yellow-50',
+    PARTIALLY_CLOSED: 'border-orange-500 bg-orange-50',
+    CLOSED: 'border-red-500 bg-red-50'
+  }
+
+  const statusLabels: Record<string, string> = {
+    AVAILABLE: 'Disponible',
+    OCCUPIED: 'Ocupada',
+    PARTIALLY_CLOSED: 'Cerrada Parcial',
+    CLOSED: 'Cerrada'
+  }
+
+  const handleCardClick = () => {
     router.push(`/dashboard/tables/${table.id}`)
   }
 
   return (
     <Card 
-      className={`cursor-pointer hover:shadow-lg transition-shadow border-l-4 ${statusColors[table.status]}`}
-      onClick={handleClick}
+      className={`cursor-pointer hover:shadow-lg transition-all border-l-4 ${statusColors[table.status]}`}
     >
-      <CardContent className="p-4">
-        <div className="flex justify-between items-start mb-3">
-          <div>
-            <h3 className="font-bold text-lg">Mesa {table.number}</h3>
-            <p className="text-sm text-gray-500">Capacidad: {table.capacity} personas</p>
+      {/* ✅ onClick en un contenedor interno */}
+      <div onClick={handleCardClick} className="cursor-pointer">
+        <CardContent className="p-3 sm:p-4">
+          <div className="flex justify-between items-start mb-2">
+            <div>
+              <h3 className="font-bold text-base sm:text-lg">Mesa {table.number}</h3>
+              <p className="text-xs sm:text-sm text-gray-500">
+                Cap: {table.capacity} personas
+              </p>
+            </div>
+            <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[table.status]}`}>
+              {statusLabels[table.status]}
+            </span>
           </div>
-          <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[table.status]}`}>
-            {statusLabels[table.status]}
-          </span>
-        </div>
 
-        {/* Comensales */}
-        <div className="mt-3 space-y-2">
-          {activeDiners.length > 0 ? (
-            <>
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <Users className="h-4 w-4" />
-                <span>{activeDiners.length} comensales</span>
-              </div>
-              <div className="flex flex-wrap gap-1">
-                {activeDiners.map((diner, index) => (
-                  <span 
-                    key={diner.id}
-                    className="inline-flex items-center gap-1 bg-gray-100 px-2 py-1 rounded text-xs"
-                  >
-                    <User className="h-3 w-3" />
-                    {diner.name || `Comensal ${index + 1}`}
-                  </span>
-                ))}
-              </div>
-            </>
-          ) : (
-            <p className="text-sm text-gray-400">Sin comensales</p>
-          )}
-        </div>
+          <div className="mt-2 space-y-2">
+            {activeDiners.length > 0 ? (
+              <>
+                <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
+                  <Users className="h-4 w-4" />
+                  <span>{activeDiners.length} comensales</span>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {activeDiners.slice(0, 3).map((diner: any, index: number) => (
+                    <span 
+                      key={diner.id}
+                      className="inline-flex items-center gap-1 bg-gray-100 px-2 py-1 rounded text-xs"
+                    >
+                      <User className="h-3 w-3" />
+                      <span className="max-w-[60px] truncate">
+                        {diner.name || `Comensal ${index + 1}`}
+                      </span>
+                    </span>
+                  ))}
+                  {activeDiners.length > 3 && (
+                    <span className="text-xs text-gray-400">+{activeDiners.length - 3}</span>
+                  )}
+                </div>
+              </>
+            ) : (
+              <p className="text-xs sm:text-sm text-gray-400">Sin comensales</p>
+            )}
+          </div>
+        </CardContent>
+      </div>
 
-        {/* Acciones */}
-        <div className="mt-4 flex gap-2">
-          {isAvailable && (
-            <Button 
-              variant="default" 
-              size="sm" 
-              className="w-full"
-              onClick={(e) => {
-                e.stopPropagation()
-                onAddDiner?.(table.id)
-              }}
-            >
-              <Users className="h-4 w-4 mr-2" />
-              Ocupar mesa
-            </Button>
-          )}
-          {isOccupied && (
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="w-full"
-              onClick={(e) => {
-                e.stopPropagation()
-                handleClick()
-              }}
-            >
-              <Utensils className="h-4 w-4 mr-2" />
-              Ver pedidos
-            </Button>
-          )}
-        </div>
-      </CardContent>
+      {/* Botones fuera del div clickable */}
+      <div className="px-3 pb-3 sm:px-4 sm:pb-4">
+        {isAvailable ? (
+          <Button 
+            variant="default" 
+            size="sm" 
+            className="w-full text-xs sm:text-sm"
+            onClick={(e) => {
+              e.stopPropagation()
+              onAddDiner?.(table.id)
+            }}
+          >
+            <Users className="h-4 w-4 mr-2" />
+            <span className="hidden sm:inline">Ocupar mesa</span>
+            <span className="sm:hidden">Ocupar</span>
+          </Button>
+        ) : (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="w-full text-xs sm:text-sm"
+            onClick={(e) => {
+              e.stopPropagation()
+              router.push(`/dashboard/tables/${table.id}`)
+            }}
+          >
+            <Utensils className="h-4 w-4 mr-2" />
+            <span className="hidden sm:inline">Ver pedidos</span>
+            <span className="sm:hidden">Pedidos</span>
+          </Button>
+        )}
+      </div>
     </Card>
   )
 }

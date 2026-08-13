@@ -2,81 +2,41 @@
 
 'use client'
 
-import { Table, Diner } from '@prisma/client'
 import { TableCard } from './TableCard'
-// ✅ Eliminar importaciones no usadas
-// import { Button } from '@/components/ui/Button'
-// import { Plus } from 'lucide-react'
-import { useState } from 'react'
-import { AddDinerModal } from './AddDinerModal'
 
-interface TableGridProps {
-  tables: (Table & {
-    diners: Diner[]
-  })[]
-  stats: {
-    total: number
-    available: number
-    occupied: number
-    totalDiners: number
-  }
-  onTableUpdate: () => void
-}
-
-export function TableGrid({ tables, stats, onTableUpdate }: TableGridProps) {
-  const [selectedTableId, setSelectedTableId] = useState<string | null>(null)
-  const [showAddDinerModal, setShowAddDinerModal] = useState(false)
-
-  const handleAddDiner = (tableId: string) => {
-    setSelectedTableId(tableId)
-    setShowAddDinerModal(true)
-  }
-
+export function TableGrid({ tables, stats, onAddDiner }: any) {
   return (
     <div>
-      <div className="grid grid-cols-4 gap-4 mb-6">
-        <div className="bg-white p-4 rounded-lg shadow">
-          <p className="text-sm text-gray-500">Total Mesas</p>
-          <p className="text-2xl font-bold">{stats.total}</p>
+      {/* Stats - Grid responsive */}
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
+        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+          <p className="text-xs sm:text-sm text-gray-500">Total Mesas</p>
+          <p className="text-xl sm:text-2xl font-bold">{stats.total}</p>
         </div>
-        <div className="bg-green-50 p-4 rounded-lg shadow">
-          <p className="text-sm text-green-600">Disponibles</p>
-          <p className="text-2xl font-bold text-green-700">{stats.available}</p>
+        <div className="bg-green-50 p-4 rounded-lg shadow-sm border border-green-100">
+          <p className="text-xs sm:text-sm text-green-600">Disponibles</p>
+          <p className="text-xl sm:text-2xl font-bold text-green-700">{stats.available}</p>
         </div>
-        <div className="bg-yellow-50 p-4 rounded-lg shadow">
-          <p className="text-sm text-yellow-600">Ocupadas</p>
-          <p className="text-2xl font-bold text-yellow-700">{stats.occupied}</p>
+        <div className="bg-yellow-50 p-4 rounded-lg shadow-sm border border-yellow-100">
+          <p className="text-xs sm:text-sm text-yellow-600">Ocupadas</p>
+          <p className="text-xl sm:text-2xl font-bold text-yellow-700">{stats.occupied}</p>
         </div>
-        <div className="bg-blue-50 p-4 rounded-lg shadow">
-          <p className="text-sm text-blue-600">Comensales</p>
-          <p className="text-2xl font-bold text-blue-700">{stats.totalDiners}</p>
+        <div className="bg-blue-50 p-4 rounded-lg shadow-sm border border-blue-100">
+          <p className="text-xs sm:text-sm text-blue-600">Comensales</p>
+          <p className="text-xl sm:text-2xl font-bold text-blue-700">{stats.totalDiners}</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {tables.map((table) => (
+      {/* Grid de mesas - Responsive */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+        {tables.map((table: any) => (
           <TableCard 
             key={table.id} 
             table={table}
-            onAddDiner={handleAddDiner}
+            onAddDiner={onAddDiner}
           />
         ))}
       </div>
-
-      {showAddDinerModal && selectedTableId && (
-        <AddDinerModal
-          tableId={selectedTableId}
-          onClose={() => {
-            setShowAddDinerModal(false)
-            setSelectedTableId(null)
-          }}
-          onSuccess={() => {
-            setShowAddDinerModal(false)
-            setSelectedTableId(null)
-            onTableUpdate()
-          }}
-        />
-      )}
     </div>
   )
 }
