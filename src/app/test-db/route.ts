@@ -10,21 +10,23 @@ export async function GET() {
     
     // Contar usuarios
     const userCount = await prisma.user.count();
+    const users = await prisma.user.findMany({
+      select: { email: true, role: true, isActive: true },
+    });
     
     return NextResponse.json({
       success: true,
-      message: "Conexión exitosa a la base de datos",
+      message: "✅ Conexión exitosa a la base de datos",
       userCount,
-      users: await prisma.user.findMany({
-        select: { email: true, role: true },
-      }),
+      users,
     });
   } catch (error) {
-    console.error("Error de base de datos:", error);
+    console.error("❌ Error de base de datos:", error);
     return NextResponse.json(
       {
         success: false,
         error: error instanceof Error ? error.message : "Error desconocido",
+        stack: error instanceof Error ? error.stack : undefined,
       },
       { status: 500 }
     );
