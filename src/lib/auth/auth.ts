@@ -6,7 +6,8 @@ import { authOptions } from "./auth.config";
 import { prisma } from "@/lib/db/prisma-client";
 import bcrypt from "bcryptjs";
 
-console.log("🔧 [Auth] Inicializando...");
+console.log("🔧 [Auth] Inicializando en:", process.env.NODE_ENV);
+console.log("🔧 [Auth] NEXTAUTH_URL:", process.env.NEXTAUTH_URL);
 
 const handler = NextAuth({
   ...authOptions,
@@ -19,6 +20,10 @@ const handler = NextAuth({
       },
       async authorize(credentials) {
         console.log("🔐 [Auth] authorize() INICIADO");
+        
+        // ✅ LOG 1: Verificar credenciales
+        console.log("🔐 [Auth] Email:", credentials?.email);
+        console.log("🔐 [Auth] Password recibida:", credentials?.password ? "✅ Sí" : "❌ No");
 
         if (!credentials?.email || !credentials?.password) {
           console.log("❌ [Auth] Credenciales faltantes");
@@ -28,24 +33,31 @@ const handler = NextAuth({
         const email = credentials.email as string;
         const password = credentials.password as string;
 
-        try {
-          console.log(`🔐 [Auth] Buscando usuario: ${email}`);
+        // ✅ LOG 2: Intentar buscar el usuario
+        console.log(`🔐 [Auth] Buscando usuario: ${email}`);
 
+        try {
           const user = await prisma.user.findUnique({
             where: { email },
-            include: { 
-              company: true,
-              permissions: true
-            },
+            include: { company: true, permissions: true },
           });
 
+          // ✅ LOG 3: Resultado de la búsqueda
           console.log(`🔐 [Auth] Usuario encontrado: ${!!user}`);
+          if (user) {
+            console.log(`🔐 [Auth] Email: ${user.email}`);
+            console.log(`🔐 [Auth] Role: ${user.role}`);
+            console.log(`🔐 [Auth] Tiene password: ${!!user.password}`);
+            console.log(`🔐 [Auth] Activo: ${user.isActive}`);
+          }
 
           if (!user || !user.password) {
             console.log(`❌ [Auth] Usuario no encontrado: ${email}`);
             return null;
           }
 
+          // ✅ LOG 4: Verificar contraseña
+          console.log("🔐 [Auth] Comparando contraseñas...");
           const passwordsMatch = await bcrypt.compare(password, user.password);
           console.log(`🔐 [Auth] Contraseña válida: ${passwordsMatch}`);
 
@@ -54,7 +66,8 @@ const handler = NextAuth({
             return null;
           }
 
-          console.log(`✅ [Auth] Login exitoso: ${email}`);
+          // ✅ LOG 5: Login exitoso
+          console.log(`✅ [Auth] LOGIN EXITOSO: ${email}`);
 
           return {
             id: user.id,
@@ -65,8 +78,11 @@ const handler = NextAuth({
             companyName: user.company?.name || "",
             permissions: user.permissions || [],
           };
+
         } catch (error) {
-          console.error("❌ [Auth] Error en authorize:", error);
+          // ✅ LOG 6: Error en la base de datos
+          console.error("❌ [Auth] ERROR EN BASE DE DATOS:", error);
+          console.error("❌ [Auth] Mensaje:", error instanceof Error ? error.message : "Error desconocido");
           return null;
         }
       },
@@ -75,7 +91,6 @@ const handler = NextAuth({
   callbacks: {
     ...authOptions.callbacks,
     async signIn({ user }) {
-      // ✅ Solo usar 'user', eliminar parámetros no usados
       console.log("🔐 [Auth] signIn callback:", user?.email);
       return true;
     },
