@@ -1,0 +1,858 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  // ❌ ELIMINA ESTA LÍNEA:
+  // url      = env("DATABASE_URL")
+}
+
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+// Enums del ERP
+enum UserRole {
+  ADMIN
+  MANAGER
+  CHEF
+  WAITER
+  CASHIER
+}
+
+enum PurchaseStatus {
+  PENDING
+  RECEIVED
+  CANCELLED
+  COMPLETED
+}
+
+enum SaleStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+  SHIPPED
+}
+
+enum PaymentType {
+  CASH
+  CREDIT_CARD
+  DEBIT_CARD
+  BANK_TRANSFER
+  OTHER
+}
+
+enum MovementType {
+  IN
+  OUT
+  ADJUSTMENT
+  TRANSFER
+}
+
+enum CostMethod {
+  FIFO
+  LIFO
+  AVERAGE
+  STANDARD
+}
+
+// Enums del Restaurante
+enum TableStatus {
+  AVAILABLE
+  OCCUPIED
+  PARTIALLY_CLOSED
+  CLOSED
+}
+
+enum OrderStatus {
+  PENDING
+  IN_PREPARATION
+  READY
+  DELIVERED
+  BILLED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  CREDIT_CARD
+  DEBIT_CARD
+  TRANSFER
+  OTHER
+}
+
+// ============================================================
+// MODELOS DEL ERP
+// ============================================================
+
+model Company {
+  id               String            @id @default(cuid())
+  name             String
+  ruc              String            @unique
+  logo             String?
+  address          String
+  currency         String            @default("USD")
+  timezone         String            @default("America/Panama")
+  country          String            @default("Panama")
+  taxRate          Float             @default(0)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  countryTaxId     String?
+  taxName          String?           @default("ITBMS")
+  
+  categories       Category[]
+  clients          Client[]
+  countryTax       CountryTax?       @relation(fields: [countryTaxId], references: [id])
+  currencies       Currency[]
+  products         Product[]
+  purchases        Purchase[]
+  reportSettings   ReportSetting[]
+  sales            Sale[]
+  securitySettings SecuritySettings?
+  settings         Setting?
+  suppliers        Supplier[]
+  users            User[]
+  warehouses       Warehouse[]
+  tables           Table[]           // Restaurante
+  recipes          Recipe[]          // Restaurante
+
+  @@map("companies")
+}
+
+model Warehouse {
+  id              String              @id @default(cuid())
+  name            String
+  type            String
+  address         String?
+  phone           String?
+  email           String?
+  isActive        Boolean             @default(true)
+  companyId       String
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  
+  inventory       InventoryItem[]
+  sourceMovements InventoryMovement[] @relation("SourceWarehouse")
+  targetMovements InventoryMovement[] @relation("TargetWarehouse")
+  locations       Location[]
+  purchaseOrders  Purchase[]
+  sales           Sale[]
+  company         Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("warehouses")
+}
+
+model Location {
+  id          String          @id @default(cuid())
+  aisle       String
+  shelf       String
+  level       String
+  position    String
+  barcode     String?         @unique
+  warehouseId String
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  
+  inventory   InventoryItem[]
+  warehouse   Warehouse       @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+
+  @@map("locations")
+}
+
+model User {
+  id                  String              @id @default(cuid())
+  email               String              @unique
+  password            String
+  name                String
+  lastName            String
+  phone               String?
+  role                UserRole            @default(WAITER)
+  companyId           String
+  isActive            Boolean             @default(true)
+  lastLogin           DateTime?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  failedLoginAttempts Int                 @default(0)
+  lastPasswordChange  DateTime?           @default(now())
+  lockedUntil         DateTime?
+  twoFactorEnabled    Boolean             @default(false)
+  twoFactorSecret     String?
+  passwordHistory     Json?
+  
+  audits              Audit[]
+  inventoryMovements  InventoryMovement[]
+  loginAttempts       LoginAttempt[]
+  permissions         Permission[]
+  purchases           Purchase[]
+  sales               Sale[]
+  company             Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  sessions            UserSession[]
+
+  @@map("users")
+}
+
+model Permission {
+  id          String   @id @default(cuid())
+  userId      String
+  module      String
+  canCreate   Boolean  @default(false)
+  canEdit     Boolean  @default(false)
+  canDelete   Boolean  @default(false)
+  canApprove  Boolean  @default(false)
+  canExport   Boolean  @default(false)
+  canPrint    Boolean  @default(false)
+  canViewCost Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("permissions")
+}
+
+model Audit {
+  id        String   @id @default(cuid())
+  userId    String
+  action    String
+  module    String
+  recordId  String
+  before    Json?
+  after     Json?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("audits")
+}
+
+model Product {
+  id              String           @id @default(cuid())
+  internalCode    String           @unique
+  sku             String           @unique
+  barcode         String?          @unique
+  qrCode          String?          @unique
+  name            String
+  description     String?
+  brand           String?
+  model           String?
+  color           String?
+  size            String?
+  weight          Float?
+  dimensions      Json?
+  images          String[]         @default([])
+  isActive        Boolean          @default(true)
+  hasIva          Boolean          @default(true)
+  unitOfMeasure   String           @default("Unidad")
+  categoryId      String?
+  subcategoryId   String?
+  companyId       String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  
+  inventory       InventoryItem[]
+  category        Category?        @relation(fields: [categoryId], references: [id])
+  company         Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  subcategory     Subcategory?     @relation(fields: [subcategoryId], references: [id])
+  purchaseDetails PurchaseDetail[]
+  saleDetails     SaleDetail[]
+  variants        Variant[]
+  recipeIngredients RecipeIngredient[]  // Restaurante
+  orderItems      OrderItem[]           // Restaurante
+
+  @@map("products")
+}
+
+model Variant {
+  id              String           @id @default(cuid())
+  productId       String
+  name            String
+  value           String
+  price           Float
+  cost            Float
+  sku             String?          @unique
+  barcode         String?          @unique
+  stock           Float            @default(0)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  
+  inventoryItems  InventoryItem[]
+  purchaseDetails PurchaseDetail[]
+  saleDetails     SaleDetail[]
+  product         Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  orderItems      OrderItem[]      // Restaurante
+
+  @@map("variants")
+}
+
+model Category {
+  id            String        @id @default(cuid())
+  name          String
+  description   String?
+  companyId     String
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  
+  company       Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  products      Product[]
+  subcategories Subcategory[]
+
+  @@map("categories")
+}
+
+model Subcategory {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  categoryId  String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  products    Product[]
+  category    Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@map("subcategories")
+}
+
+model InventoryItem {
+  id             String              @id @default(cuid())
+  productId      String
+  variantId      String?
+  warehouseId    String
+  locationId     String?
+  currentStock   Float               @default(0)
+  availableStock Float               @default(0)
+  reservedStock  Float               @default(0)
+  transitStock   Float               @default(0)
+  minStock       Float               @default(0)
+  maxStock       Float               @default(0)
+  reorderPoint   Float               @default(0)
+  costMethod     CostMethod          @default(FIFO)
+  standardCost   Float?
+  lastCost       Float?
+  averageCost    Float?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  
+  location       Location?           @relation(fields: [locationId], references: [id])
+  product        Product             @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variant        Variant?            @relation(fields: [variantId], references: [id])
+  warehouse      Warehouse           @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  movements      InventoryMovement[]
+  kardex         Kardex[]
+
+  @@map("inventory_items")
+}
+
+model InventoryMovement {
+  id                String        @id @default(cuid())
+  type              MovementType
+  quantity          Float
+  unitCost          Float
+  totalCost         Float
+  reference         String?
+  description       String?
+  inventoryItemId   String
+  sourceWarehouseId String?
+  targetWarehouseId String?
+  userId            String
+  approvedBy        String?
+  approvedAt        DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  
+  inventoryItem     InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
+  sourceWarehouse   Warehouse?    @relation("SourceWarehouse", fields: [sourceWarehouseId], references: [id])
+  targetWarehouse   Warehouse?    @relation("TargetWarehouse", fields: [targetWarehouseId], references: [id])
+  user              User          @relation(fields: [userId], references: [id])
+  kardex            Kardex[]
+
+  @@map("inventory_movements")
+}
+
+model Kardex {
+  id              String            @id @default(cuid())
+  date            DateTime          @default(now())
+  movementId      String
+  inventoryItemId String
+  quantityIn      Float             @default(0)
+  quantityOut     Float             @default(0)
+  balance         Float             @default(0)
+  unitCost        Float             @default(0)
+  totalCost       Float             @default(0)
+  balanceCost     Float             @default(0)
+  createdAt       DateTime          @default(now())
+  
+  inventoryItem   InventoryItem     @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
+  movement        InventoryMovement @relation(fields: [movementId], references: [id], onDelete: Cascade)
+
+  @@map("kardex")
+}
+
+model Supplier {
+  id            String     @id @default(cuid())
+  name          String
+  email         String?
+  phone         String?
+  ruc           String?    @unique
+  address       String?
+  contactPerson String?
+  creditLimit   Float?
+  paymentTerms  String?
+  isActive      Boolean    @default(true)
+  companyId     String
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  
+  contacts      Contact[]
+  documents     Document[]
+  purchases     Purchase[]
+  company       Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("suppliers")
+}
+
+model Client {
+  id            String     @id @default(cuid())
+  name          String
+  email         String?
+  phone         String?
+  ruc           String?    @unique
+  address       String?
+  contactPerson String?
+  creditLimit   Float?
+  paymentTerms  String?
+  isActive      Boolean    @default(true)
+  companyId     String
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  
+  company       Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contacts      Contact[]
+  documents     Document[]
+  sales         Sale[]
+
+  @@map("clients")
+}
+
+model Contact {
+  id         String    @id @default(cuid())
+  name       String
+  email      String?
+  phone      String?
+  position   String?
+  isPrimary  Boolean   @default(false)
+  clientId   String?
+  supplierId String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  
+  client     Client?   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  supplier   Supplier? @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@map("contacts")
+}
+
+model Purchase {
+  id           String           @id @default(cuid())
+  number       String           @unique
+  status       PurchaseStatus   @default(PENDING)
+  supplierId   String
+  userId       String
+  companyId    String
+  warehouseId  String?
+  purchaseDate DateTime         @default(now())
+  expectedDate DateTime?
+  receivedDate DateTime?
+  subtotal     Float            @default(0)
+  tax          Float            @default(0)
+  total        Float            @default(0)
+  currency     String           @default("USD")
+  exchangeRate Float            @default(1)
+  notes        String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  
+  documents    Document[]
+  payments     Payment[]
+  company      Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  supplier     Supplier         @relation(fields: [supplierId], references: [id])
+  user         User             @relation(fields: [userId], references: [id])
+  warehouse    Warehouse?       @relation(fields: [warehouseId], references: [id])
+  details      PurchaseDetail[]
+
+  @@map("purchases")
+}
+
+model PurchaseDetail {
+  id         String   @id @default(cuid())
+  purchaseId String
+  productId  String
+  variantId  String?
+  quantity   Float    @default(0)
+  unitCost   Float    @default(0)
+  totalCost  Float    @default(0)
+  received   Float    @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  
+  product    Product  @relation(fields: [productId], references: [id])
+  purchase   Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  variant    Variant? @relation(fields: [variantId], references: [id])
+
+  @@map("purchase_details")
+}
+
+model Sale {
+  id           String       @id @default(cuid())
+  number       String       @unique
+  status       SaleStatus   @default(PENDING)
+  clientId     String
+  userId       String
+  companyId    String
+  warehouseId  String?
+  saleDate     DateTime     @default(now())
+  deliveryDate DateTime?
+  subtotal     Float        @default(0)
+  discount     Float        @default(0)
+  tax          Float        @default(0)
+  total        Float        @default(0)
+  currency     String       @default("USD")
+  exchangeRate Float        @default(1)
+  commission   Float?
+  notes        String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  taxAmount    Float?
+  taxName      String?
+  taxRate      Float?
+  
+  documents    Document[]
+  payments     Payment[]
+  client       Client       @relation(fields: [clientId], references: [id])
+  company      Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id])
+  warehouse    Warehouse?   @relation(fields: [warehouseId], references: [id])
+  details      SaleDetail[]
+
+  @@map("sales")
+}
+
+model SaleDetail {
+  id        String   @id @default(cuid())
+  saleId    String
+  productId String
+  variantId String?
+  quantity  Float    @default(0)
+  unitPrice Float    @default(0)
+  discount  Float    @default(0)
+  total     Float    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  product   Product  @relation(fields: [productId], references: [id])
+  sale      Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  variant   Variant? @relation(fields: [variantId], references: [id])
+
+  @@map("sale_details")
+}
+
+model Payment {
+  id          String       @id @default(cuid())
+  type        PaymentType
+  amount      Float        @default(0)
+  reference   String?
+  purchaseId  String?
+  saleId      String?
+  paymentDate DateTime     @default(now())
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  
+  purchase    Purchase?    @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  sale        Sale?        @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
+}
+
+model Document {
+  id         String    @id @default(cuid())
+  type       String
+  name       String
+  url        String
+  clientId   String?
+  supplierId String?
+  purchaseId String?
+  saleId     String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  
+  client     Client?   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  purchase   Purchase? @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  sale       Sale?     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  supplier   Supplier? @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@map("documents")
+}
+
+model Setting {
+  id                     String   @id @default(cuid())
+  companyId              String   @unique
+  allowNegativeInventory Boolean  @default(false)
+  defaultCostMethod      CostMethod @default(FIFO)
+  taxIncluded            Boolean  @default(false)
+  currency               String   @default("USD")
+  timezone               String   @default("UTC")
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  
+  company                Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("settings")
+}
+
+model Currency {
+  id            String   @id @default(cuid())
+  code          String   @unique
+  name          String
+  symbol        String
+  decimalPlaces Int      @default(2)
+  exchangeRate  Float    @default(1)
+  isBase        Boolean  @default(false)
+  isActive      Boolean  @default(true)
+  companyId     String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([code, companyId])
+  @@map("currencies")
+}
+
+model CountryTax {
+  id          String    @id @default(cuid())
+  country     String    @unique
+  taxName     String
+  taxRate     Float
+  description String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  companies   Company[]
+
+  @@map("country_taxes")
+}
+
+model ReportSetting {
+  id        String   @id @default(cuid())
+  companyId String
+  reportId  String
+  enabled   Boolean  @default(true)
+  config    Json?    @default("{}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, reportId])
+  @@map("report_settings")
+}
+
+model SecuritySettings {
+  id                    String   @id @default(cuid())
+  companyId             String   @unique
+  twoFactorAuth         Boolean  @default(false)
+  loginNotifications    Boolean  @default(true)
+  sessionConcurrency    Boolean  @default(true)
+  requireStrongPassword Boolean  @default(true)
+  passwordExpiryDays    Int      @default(90)
+  preventPasswordReuse  Boolean  @default(true)
+  forceLogoutAfterDays  Int      @default(30)
+  blockSuspiciousIPs    Boolean  @default(false)
+  sessionTimeout        Int      @default(30)
+  maxLoginAttempts      Int      @default(5)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  company               Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("security_settings")
+}
+
+model UserSession {
+  id           String   @id @default(cuid())
+  userId       String
+  sessionToken String   @unique
+  device       String
+  browser      String
+  ipAddress    String?
+  location     String?
+  userAgent    String?
+  lastActive   DateTime @default(now())
+  expiresAt    DateTime
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([sessionToken])
+  @@map("user_sessions")
+}
+
+model LoginAttempt {
+  id        String   @id @default(cuid())
+  email     String
+  userId    String?
+  ipAddress String
+  location  String?
+  userAgent String?
+  status    String
+  timestamp DateTime @default(now())
+  createdAt DateTime @default(now())
+  
+  user      User?    @relation(fields: [userId], references: [id])
+
+  @@index([email])
+  @@index([userId])
+  @@index([timestamp])
+  @@map("login_attempts")
+}
+
+// ============================================================
+// MODELOS DEL RESTAURANTE
+// ============================================================
+
+model Table {
+  id          String        @id @default(cuid())
+  number      String
+  capacity    Int           @default(4)
+  status      TableStatus   @default(AVAILABLE)
+  location    String?
+  companyId   String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  
+  company     Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  diners      Diner[]
+
+  @@unique([companyId, number])
+  @@index([companyId])
+  @@index([status])
+  @@map("tables")
+}
+
+model Diner {
+  id          String    @id @default(cuid())
+  tableId     String
+  name        String?
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  table       Table     @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  orders      Order[]
+
+  @@index([tableId])
+  @@index([active])
+  @@map("diners")
+}
+
+model Recipe {
+  id          String            @id @default(cuid())
+  name        String
+  description String?
+  yield       Float             @default(1)
+  unit        String            @default("unidad")
+  prepTime    Int?              // minutos
+  instructions String?
+  isActive    Boolean           @default(true)
+  companyId   String
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  
+  company     Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  ingredients RecipeIngredient[]
+
+  @@index([companyId])
+  @@index([isActive])
+  @@map("recipes")
+}
+
+model RecipeIngredient {
+  id                String    @id @default(cuid())
+  recipeId          String
+  productId         String
+  quantity          Float
+  unit              String
+  consumeInventory  Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  recipe            Recipe    @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  product           Product   @relation(fields: [productId], references: [id])
+
+  @@unique([recipeId, productId])
+  @@index([recipeId])
+  @@index([productId])
+  @@map("recipe_ingredients")
+}
+
+model Order {
+  id          String        @id @default(cuid())
+  dinerId     String
+  status      OrderStatus   @default(PENDING)
+  total       Float         @default(0)
+  notes       String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  
+  diner       Diner         @relation(fields: [dinerId], references: [id], onDelete: Cascade)
+  items       OrderItem[]
+  payments    RestaurantPayment[]
+
+  @@index([dinerId])
+  @@index([status])
+  @@map("orders")
+}
+
+model OrderItem {
+  id          String    @id @default(cuid())
+  orderId     String
+  productId   String
+  variantId   String?
+  quantity    Float
+  unitPrice   Float
+  subtotal    Float
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  order       Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product     Product   @relation(fields: [productId], references: [id])
+  variant     Variant?  @relation(fields: [variantId], references: [id])
+
+  @@index([orderId])
+  @@map("order_items")
+}
+
+model RestaurantPayment {
+  id          String          @id @default(cuid())
+  orderId     String
+  amount      Float
+  method      PaymentMethod
+  reference   String?
+  status      String          @default("COMPLETED")
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  
+  order       Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@map("restaurant_payments")
+}
