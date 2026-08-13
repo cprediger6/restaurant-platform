@@ -1,3 +1,5 @@
+// src/components/layout/Sidebar.tsx
+
 'use client'
 
 import Link from 'next/link'
@@ -21,15 +23,27 @@ interface SidebarProps {
 
 const menuItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/inventory', label: 'Inventario', icon: Package },
-  { href: '/recipes', label: 'Recetas', icon: Utensils },
-  { href: '/tables', label: 'Mesas', icon: Warehouse },
-  { href: '/orders', label: 'Pedidos', icon: ShoppingCart },
+  { href: '/dashboard/inventory', label: 'Inventario', icon: Package },
+  { href: '/dashboard/recipes', label: 'Recetas', icon: Utensils },
+  { href: '/dashboard/tables', label: 'Mesas', icon: Warehouse },
+  { href: '/dashboard/orders', label: 'Pedidos', icon: ShoppingCart },
 ]
 
 export function Sidebar({ onClose }: SidebarProps) {
   const { data: session } = useSession()
   const pathname = usePathname()
+
+  // ✅ Si no hay sesión, mostrar sidebar vacío
+  if (!session) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="animate-pulse text-center">
+          <div className="h-8 w-8 rounded-full border-2 border-blue-600 border-t-transparent animate-spin mx-auto" />
+          <p className="mt-2 text-xs text-gray-400">Cargando...</p>
+        </div>
+      </div>
+    )
+  }
 
   const handleClose = () => {
     if (onClose) onClose()
@@ -94,10 +108,10 @@ export function Sidebar({ onClose }: SidebarProps) {
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium text-slate-800 truncate">
-              {session?.user?.name || 'Usuario'}
+              {session.user?.name || 'Usuario'}
             </p>
             <p className="text-xs text-slate-400 truncate">
-              {session?.user?.role || 'Sin rol'}
+              {session.user?.role || 'Sin rol'}
             </p>
           </div>
         </div>

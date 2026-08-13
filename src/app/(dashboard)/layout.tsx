@@ -1,3 +1,5 @@
+// src/app/(dashboard)/layout.tsx
+
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -14,6 +16,12 @@ export default function DashboardLayout({
   const { data: session, status } = useSession()
   const router = useRouter()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [isMounted, setIsMounted] = useState(false)
+
+  // ✅ Para evitar problemas de hidratación
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -21,18 +29,21 @@ export default function DashboardLayout({
     }
   }, [status, router])
 
-  if (status === 'loading') {
+  // ✅ Mostrar loading solo durante la carga inicial
+  if (!isMounted || status === 'loading') {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-pulse text-center">
-          <div className="h-12 w-12 rounded-full border-4 border-blue-600 border-t-transparent animate-spin mx-auto" />
-          <p className="mt-4 text-gray-500">Cargando...</p>
+        <div className="text-center">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent" />
+          <p className="mt-2 text-gray-500">Cargando...</p>
         </div>
       </div>
     )
   }
 
-  if (!session) return null
+  if (!session) {
+    return null
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">
