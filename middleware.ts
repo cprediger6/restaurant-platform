@@ -8,33 +8,30 @@ export default withAuth(
     const token = req.nextauth.token;
     const path = req.nextUrl.pathname;
 
-    // ✅ Rutas públicas - incluir TODAS las rutas de auth
+    // ✅ TODAS las rutas de API deben ser públicas
     const publicPaths = [
       '/login',
-      '/api/auth',
+      '/api/auth',           // ✅ Todas las rutas de auth
+      '/api/auth/callback',
       '/api/auth/session',
       '/api/auth/providers',
-      '/api/auth/callback',
       '/api/auth/signin',
       '/api/auth/error',
       '/api/auth/_log',
+      '/_next',               // ✅ Recursos de Next.js
+      '/favicon.ico',
     ];
     
     const isPublicPath = publicPaths.some(p => path.startsWith(p));
 
-    // Si es una ruta pública, permitir acceso
+    // ✅ Siempre permitir rutas públicas
     if (isPublicPath) {
       return NextResponse.next();
     }
 
-    // Si no hay token, redirigir a login
+    // ✅ Si no hay token, redirigir a login
     if (!token) {
       return NextResponse.redirect(new URL('/login', req.url));
-    }
-
-    // Proteger rutas de API
-    if (path.startsWith('/api')) {
-      return NextResponse.next();
     }
 
     return NextResponse.next();
@@ -51,7 +48,7 @@ export default withAuth(
 
 export const config = {
   matcher: [
-    // ✅ Excluir explícitamente las rutas de auth
-    '/((?!_next/static|_next/image|favicon.ico|login|api/auth).*)',
-  ]
+    // ✅ Excluir explícitamente las rutas de auth y recursos estáticos
+    '/((?!_next/static|_next/image|favicon.ico|api/auth|login).*)',
+  ],
 };
