@@ -3,12 +3,8 @@
 'use client'
 
 import { useState } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/Dialog'
-import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
-import { Label } from '@/components/ui/Label'
 import { useTables } from '@/hooks/useTables'
-import { AlertCircle } from 'lucide-react'
+import { Table, X, AlertCircle } from 'lucide-react'
 
 interface CreateTableModalProps {
   onClose: () => void
@@ -56,115 +52,138 @@ export function CreateTableModal({ onClose, onSuccess }: CreateTableModalProps) 
       })
       onSuccess()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al crear la mesa')
+      const errorMessage = err instanceof Error ? err.message : 'Error al crear la mesa'
+      
+      // ✅ Mejorar el mensaje para errores comunes
+      if (errorMessage.includes('Ya existe una mesa')) {
+        setError(`❌ La mesa "${number.trim()}" ya existe. Por favor, usa otro número.`)
+      } else {
+        setError(errorMessage)
+      }
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold flex items-center gap-2">
-            🪑 Agregar nueva mesa
-          </DialogTitle>
-          <p className="text-sm text-gray-500">
-            Ingresa los datos de la nueva mesa para el restaurante
-          </p>
-        </DialogHeader>
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {/* Overlay */}
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      
+      {/* Modal */}
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6 max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <div className="p-2 bg-green-50 rounded-lg">
+              <Table className="h-5 w-5 text-green-600" />
+            </div>
+            <h2 className="text-lg font-semibold text-gray-900">
+              Agregar mesa
+            </h2>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <X className="h-5 w-5 text-gray-500" />
+          </button>
+        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6 mt-4">
-          {/* Número de Mesa */}
-          <div className="space-y-2">
-            <Label htmlFor="number" className="text-sm font-medium">
-              Número de mesa *
-            </Label>
-            <Input
-              id="number"
-              type="text"
-              placeholder="Ej: 10, 11, A1, B2"
-              value={number}
-              onChange={(e) => setNumber(e.target.value)}
-              disabled={loading}
-              className="w-full"
-              autoFocus
-            />
-            <p className="text-xs text-gray-400">
-              Puedes usar números o letras (Ej: 1, 2, A1, Terraza-1)
-            </p>
+        {/* Form */}
+        <form onSubmit={handleSubmit}>
+          <div className="space-y-4">
+            {/* Número */}
+            <div>
+              <label htmlFor="tableNumber" className="block text-sm font-medium text-gray-700 mb-1">
+                Número de mesa *
+              </label>
+              <input
+                id="tableNumber"
+                type="text"
+                value={number}
+                onChange={(e) => setNumber(e.target.value)}
+                placeholder="Ej: 10, A1, Terraza-1"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+                disabled={loading}
+                autoFocus
+              />
+              <p className="mt-1 text-xs text-gray-400">
+                Usa un número que no esté ocupado
+              </p>
+            </div>
+
+            {/* Capacidad */}
+            <div>
+              <label htmlFor="tableCapacity" className="block text-sm font-medium text-gray-700 mb-1">
+                Capacidad (personas) *
+              </label>
+              <input
+                id="tableCapacity"
+                type="number"
+                min="1"
+                max="20"
+                value={capacity}
+                onChange={(e) => setCapacity(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+                disabled={loading}
+              />
+              <p className="mt-1 text-xs text-gray-400">
+                Número máximo de personas (1-20)
+              </p>
+            </div>
+
+            {/* Ubicación */}
+            <div>
+              <label htmlFor="tableLocation" className="block text-sm font-medium text-gray-700 mb-1">
+                Ubicación <span className="text-gray-400">(opcional)</span>
+              </label>
+              <input
+                id="tableLocation"
+                type="text"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                placeholder="Ej: Terraza, Interior, Frente al jardín"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+                disabled={loading}
+              />
+            </div>
           </div>
 
-          {/* Capacidad */}
-          <div className="space-y-2">
-            <Label htmlFor="capacity" className="text-sm font-medium">
-              Capacidad (personas) *
-            </Label>
-            <Input
-              id="capacity"
-              type="number"
-              min="1"
-              max="20"
-              value={capacity}
-              onChange={(e) => setCapacity(e.target.value)}
-              disabled={loading}
-              className="w-full"
-            />
-            <p className="text-xs text-gray-400">
-              Número máximo de personas que puede sentar la mesa (1-20)
-            </p>
-          </div>
-
-          {/* Ubicación */}
-          <div className="space-y-2">
-            <Label htmlFor="location" className="text-sm font-medium">
-              Ubicación (opcional)
-            </Label>
-            <Input
-              id="location"
-              type="text"
-              placeholder="Ej: Terraza, Interior, Frente al jardín"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              disabled={loading}
-              className="w-full"
-            />
-            <p className="text-xs text-gray-400">
-              Describe dónde se encuentra la mesa
-            </p>
-          </div>
-
-          {/* Mensaje de Error */}
+          {/* Error mejorado */}
           {error && (
-            <div className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg">
-              <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
-              <p className="text-sm">{error}</p>
+            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600 flex items-start gap-2">
+              <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+              <span>{error}</span>
             </div>
           )}
 
-          {/* Botones de Acción */}
-          <div className="flex gap-2 justify-end pt-4 border-t">
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={onClose} 
+          <div className="flex gap-3 mt-6">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition"
               disabled={loading}
             >
               Cancelar
-            </Button>
-            <Button type="submit" disabled={loading}>
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 flex items-center justify-center gap-2"
+            >
               {loading ? (
                 <>
-                  <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent mr-2" />
+                  <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
                   Creando...
                 </>
               ) : (
                 'Crear mesa'
               )}
-            </Button>
+            </button>
           </div>
         </form>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>
   )
 }

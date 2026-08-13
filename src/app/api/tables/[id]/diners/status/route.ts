@@ -1,13 +1,14 @@
-// src/app/api/tables/[id]/diners/route.ts
+// src/app/api/tables/[id]/status/route.ts
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth/auth.config'
 import { TablesService } from '@/lib/services/tables.service'
+import { TableStatus } from '@prisma/client'
 
 const tablesService = new TablesService()
 
-export async function POST(
+export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> } // ✅ Cambiar a Promise
 ) {
@@ -19,17 +20,24 @@ export async function POST(
 
   try {
     const body = await request.json()
-    const { name } = body
+    const { status } = body
+
+    if (!Object.values(TableStatus).includes(status)) {
+      return NextResponse.json(
+        { error: 'Estado inválido' },
+        { status: 400 }
+      )
+    }
 
     // ✅ Usar await en params
     const { id } = await params
 
-    const diner = await tablesService.addDiner(id, name)
-    return NextResponse.json(diner, { status: 201 })
+    const table = await tablesService.updateTableStatus(id, status)
+    return NextResponse.json(table)
   } catch (error) {
-    console.error('Error al agregar comensal:', error)
+    console.error('Error al actualizar estado:', error)
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Error al agregar comensal' },
+      { error: error instanceof Error ? error.message : 'Error al actualizar estado' },
       { status: 400 }
     )
   }

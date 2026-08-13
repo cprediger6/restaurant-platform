@@ -1,3 +1,5 @@
+// src/components/layout/Sidebar.tsx
+
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -23,7 +25,7 @@ const menuItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/products', label: 'Productos', icon: Package },
   { href: '/inventory', label: 'Inventario', icon: Warehouse },
-  { href: '/tables', label: 'Mesas', icon: Table },
+  { href: '/tables', label: 'Mesas', icon: Table },        // ✅ Ya está incluido
   { href: '/recipes', label: 'Recetas', icon: Utensils },
   { href: '/orders', label: 'Pedidos', icon: ShoppingCart },
   { href: '/clients', label: 'Clientes', icon: Users },
@@ -33,29 +35,24 @@ const menuItems = [
 export function Sidebar() {
   const pathname = usePathname()
   const { data: session } = useSession()
-  const [isMobileOpen, setIsMobileOpen] = useState(false)
+  const [isOpen, setIsOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
 
-  // Detectar si es móvil
   useEffect(() => {
     const checkScreen = () => {
-      setIsMobile(window.innerWidth < 1024)
-      if (window.innerWidth >= 1024) {
-        setIsMobileOpen(true)
-      } else {
-        setIsMobileOpen(false)
-      }
+      const mobile = window.innerWidth < 1024
+      setIsMobile(mobile)
+      if (!mobile) setIsOpen(true)
+      else setIsOpen(false)
     }
     checkScreen()
     window.addEventListener('resize', checkScreen)
     return () => window.removeEventListener('resize', checkScreen)
   }, [])
 
-  // Cerrar el menú al navegar
+  // ✅ Cerrar al navegar en móvil
   useEffect(() => {
-    if (isMobile) {
-      setIsMobileOpen(false)
-    }
+    if (isMobile) setIsOpen(false)
   }, [pathname, isMobile])
 
   const userName = session?.user?.name || 'Usuario'
@@ -63,36 +60,35 @@ export function Sidebar() {
 
   return (
     <>
-      {/* ✅ Botón hamburguesa - solo visible en móvil */}
+      {/* Botón hamburguesa */}
       <button
-        onClick={() => setIsMobileOpen(!isMobileOpen)}
+        onClick={() => setIsOpen(!isOpen)}
         className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors"
         aria-label="Toggle menu"
       >
-        {isMobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+        {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
       </button>
 
-      {/* ✅ Overlay para móvil */}
-      {isMobileOpen && isMobile && (
-        <div
-          className="lg:hidden fixed inset-0 bg-black/50 z-40"
-          onClick={() => setIsMobileOpen(false)}
-        />
+      {/* Overlay */}
+      {isOpen && isMobile && (
+        <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setIsOpen(false)} />
       )}
 
-      {/* ✅ Sidebar */}
+      {/* Sidebar */}
       <aside
         className={cn(
-          "w-64 bg-slate-900 text-white h-full p-4 flex flex-col fixed left-0 top-0 z-50 transition-transform duration-300 ease-in-out",
-          isMobileOpen || !isMobile ? "translate-x-0" : "-translate-x-full",
-          isMobile ? "w-72" : "w-64"
+          "fixed top-0 left-0 z-50 h-full bg-slate-900 text-white p-4 flex flex-col transition-transform duration-300",
+          isOpen || !isMobile ? "translate-x-0" : "-translate-x-full",
+          isMobile ? "w-72" : "w-64 lg:translate-x-0"
         )}
       >
-        <div className="mb-8">
+        {/* Header */}
+        <div className="mb-6">
           <h1 className="text-xl font-bold">Restaurant</h1>
           <p className="text-sm text-slate-400">Sistema de gestión</p>
         </div>
 
+        {/* Menú */}
         <nav className="flex-1 space-y-1 overflow-y-auto">
           {menuItems.map((item) => {
             const Icon = item.icon
@@ -102,7 +98,7 @@ export function Sidebar() {
               <Link
                 key={item.href}
                 href={item.href}
-                onClick={() => isMobile && setIsMobileOpen(false)}
+                onClick={() => isMobile && setIsOpen(false)}
                 className={cn(
                   'flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-colors',
                   isActive
@@ -112,12 +108,16 @@ export function Sidebar() {
               >
                 <Icon className="h-5 w-5" />
                 <span>{item.label}</span>
+                {isActive && (
+                  <span className="ml-auto h-1.5 w-1.5 rounded-full bg-white" />
+                )}
               </Link>
             )
           })}
         </nav>
 
-        <div className="border-t border-slate-800 pt-4 mt-4">
+        {/* Footer - Usuario y Logout */}
+        <div className="border-t border-slate-800 pt-4">
           <div className="flex items-center space-x-3 px-3 py-2">
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-sm font-bold">
               {userName.charAt(0).toUpperCase()}

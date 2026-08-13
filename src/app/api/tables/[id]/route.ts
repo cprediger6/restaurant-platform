@@ -1,4 +1,4 @@
-// src/app/api/tables/[id]/diners/route.ts
+// src/app/api/diners/[id]/route.ts
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
@@ -7,7 +7,7 @@ import { TablesService } from '@/lib/services/tables.service'
 
 const tablesService = new TablesService()
 
-export async function POST(
+export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> } // ✅ Cambiar a Promise
 ) {
@@ -18,18 +18,15 @@ export async function POST(
   }
 
   try {
-    const body = await request.json()
-    const { name } = body
-
     // ✅ Usar await en params
     const { id } = await params
 
-    const diner = await tablesService.addDiner(id, name)
-    return NextResponse.json(diner, { status: 201 })
+    const result = await tablesService.removeDiner(id)
+    return NextResponse.json(result)
   } catch (error) {
-    console.error('Error al agregar comensal:', error)
+    console.error('Error al retirar comensal:', error)
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Error al agregar comensal' },
+      { error: error instanceof Error ? error.message : 'Error al retirar comensal' },
       { status: 400 }
     )
   }
