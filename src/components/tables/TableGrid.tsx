@@ -4,8 +4,9 @@
 
 import { Table, Diner } from '@prisma/client'
 import { TableCard } from './TableCard'
-import { Button } from '@/components/ui/Button'  // ✅ Usando Button.tsx
-import { Plus } from 'lucide-react'
+// ✅ Eliminar importaciones no usadas
+// import { Button } from '@/components/ui/Button'
+// import { Plus } from 'lucide-react'
 import { useState } from 'react'
 import { AddDinerModal } from './AddDinerModal'
 
@@ -33,7 +34,6 @@ export function TableGrid({ tables, stats, onTableUpdate }: TableGridProps) {
 
   return (
     <div>
-      {/* Stats */}
       <div className="grid grid-cols-4 gap-4 mb-6">
         <div className="bg-white p-4 rounded-lg shadow">
           <p className="text-sm text-gray-500">Total Mesas</p>
@@ -53,7 +53,6 @@ export function TableGrid({ tables, stats, onTableUpdate }: TableGridProps) {
         </div>
       </div>
 
-      {/* Grid de mesas */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {tables.map((table) => (
           <TableCard 
@@ -64,7 +63,6 @@ export function TableGrid({ tables, stats, onTableUpdate }: TableGridProps) {
         ))}
       </div>
 
-      {/* Modal para agregar comensal */}
       {showAddDinerModal && selectedTableId && (
         <AddDinerModal
           tableId={selectedTableId}

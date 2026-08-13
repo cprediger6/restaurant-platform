@@ -1,9 +1,9 @@
 // src/hooks/useTables.ts
 
-'use client'  // ✅ Esto indica que es un hook de cliente
+'use client'
 
-import { useState, useEffect } from 'react'
-import { Table, Diner, TableStatus } from '@prisma/client'
+import { useState, useEffect, useCallback } from 'react'
+import { Table, Diner } from '@prisma/client'
 import { useSession } from 'next-auth/react'
 
 export function useTables() {
@@ -20,8 +20,8 @@ export function useTables() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // ✅ Usar API routes en lugar de Prisma directamente
-  const fetchTables = async () => {
+  // ✅ Usar useCallback para memoizar las funciones
+  const fetchTables = useCallback(async () => {
     if (!companyId) {
       setError('No se encontró la compañía del usuario')
       return
@@ -41,9 +41,9 @@ export function useTables() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [companyId])
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     if (!companyId) return
 
     try {
@@ -56,18 +56,27 @@ export function useTables() {
     } catch (err) {
       console.error('Error al cargar estadísticas:', err)
     }
-  }
+  }, [companyId])
 
+  // ✅ Effect con las dependencias correctas
+  useEffect(() => {
+    if (companyId) {
+      fetchTables()
+      fetchStats()
+    }
+  }, [companyId, fetchTables, fetchStats])
+
+  // Resto de funciones...
   const createTable = async (data: { number: string; capacity: number; location?: string }) => {
     const response = await fetch('/api/tables', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
+      body: JSON.stringify({ ...data, companyId })
     })
 
     if (!response.ok) {
       const error = await response.json()
-      throw new Error(error.error || 'Error al crear mesa')
+      throw new Error(error.message || 'Error al crear mesa')
     }
 
     return await response.json()
@@ -82,20 +91,11 @@ export function useTables() {
 
     if (!response.ok) {
       const error = await response.json()
-      throw new Error(error.error || 'Error al agregar comensal')
+      throw new Error(error.message || 'Error al agregar comensal')
     }
 
     return await response.json()
   }
-
-  // ... otros métodos
-
-  useEffect(() => {
-    if (companyId) {
-      fetchTables()
-      fetchStats()
-    }
-  }, [companyId])
 
   return {
     tables,
@@ -106,6 +106,5 @@ export function useTables() {
     fetchStats,
     createTable,
     addDiner,
-    // ... otros métodos
   }
 }

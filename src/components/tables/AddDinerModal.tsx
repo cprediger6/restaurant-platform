@@ -5,7 +5,7 @@
 import { useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/Dialog'
 import { Button } from '@/components/ui/Button'
-//import { Input } from '@/components/ui/Input'
+import { Input } from '@/components/ui/Input'
 import { useTables } from '@/hooks/useTables'
 
 interface AddDinerModalProps {

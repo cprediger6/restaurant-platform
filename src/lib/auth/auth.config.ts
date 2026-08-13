@@ -2,10 +2,48 @@
 
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { prisma } from "@/lib/db/prisma";
+import { prisma } from "@/lib/db/prisma-client";
 import { compare } from "bcryptjs";
 
+// ✅ Definir el tipo Permission
+interface Permission {
+  id: string;
+  userId: string;
+  module: string;
+  canCreate: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
+  canApprove: boolean;
+  canExport: boolean;
+  canPrint: boolean;
+  canViewCost: boolean;
+}
+
+// ✅ Definir el tipo UserWithCompany (no usar "User" solo)
+interface UserWithCompany {
+  id: string;
+  email: string;
+  name: string;
+  lastName: string;
+  password: string;
+  role: string;
+  companyId: string;
+  company: {
+    id: string;
+    name: string;
+  } | null;
+  permissions?: Permission[];
+}
+
+// ✅ Extender correctamente los tipos de NextAuth
 declare module "next-auth" {
+  interface User {
+    role: string;
+    companyId: string;
+    companyName: string;
+    permissions: Permission[];
+  }
+
   interface Session {
     user: {
       id: string;
@@ -14,7 +52,7 @@ declare module "next-auth" {
       role: string;
       companyId: string;
       companyName: string;
-      permissions: any;
+      permissions: Permission[];
     }
   }
 
@@ -23,7 +61,7 @@ declare module "next-auth" {
     role?: string;
     companyId?: string;
     companyName?: string;
-    permissions?: any;
+    permissions?: Permission[];
   }
 }
 
@@ -36,7 +74,6 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
-        // ✅ NO lanzar errores, retornar null
         if (!credentials?.email || !credentials?.password) {
           return null;
         }
@@ -44,7 +81,7 @@ export const authOptions: NextAuthOptions = {
         const user = await prisma.user.findUnique({
           where: { email: credentials.email },
           include: { company: true },
-        });
+        }) as UserWithCompany | null;
 
         if (!user || !user.password) {
           return null;
@@ -56,6 +93,7 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
+        // ✅ Retornar el objeto con el tipo correcto
         return {
           id: user.id,
           email: user.email,
@@ -63,20 +101,20 @@ export const authOptions: NextAuthOptions = {
           role: user.role,
           companyId: user.companyId,
           companyName: user.company?.name || "",
-          permissions: [],
+          permissions: user.permissions || [],
         };
       }
     })
   ],
   callbacks: {
     async jwt({ token, user }) {
+      // ✅ Usar el tipo correcto
       if (user) {
-        const u = user as any;
-        token.id = u.id;
-        token.role = u.role;
-        token.companyId = u.companyId;
-        token.companyName = u.companyName;
-        token.permissions = u.permissions;
+        token.id = user.id;
+        token.role = user.role;
+        token.companyId = user.companyId;
+        token.companyName = user.companyName;
+        token.permissions = user.permissions;
       }
       return token;
     },
@@ -86,7 +124,7 @@ export const authOptions: NextAuthOptions = {
         session.user.role = token.role as string;
         session.user.companyId = token.companyId as string;
         session.user.companyName = token.companyName as string;
-        session.user.permissions = token.permissions;
+        session.user.permissions = token.permissions as Permission[];
       }
       return session;
     }

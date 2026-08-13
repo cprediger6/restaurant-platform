@@ -13,10 +13,11 @@ export default function TablesPage() {
   const { tables, stats, loading, error, fetchTables, fetchStats } = useTables()
   const [showCreateModal, setShowCreateModal] = useState(false)
 
+  // ✅ Effect con las dependencias correctas
   useEffect(() => {
     fetchTables()
     fetchStats()
-  }, [])
+  }, [fetchTables, fetchStats])
 
   if (loading) {
     return (
