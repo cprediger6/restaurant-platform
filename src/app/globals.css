@@ -24,3 +24,14 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+.dashboard-content {
+  margin-left: 16rem; /* 64 * 4px = 256px */
+  min-height: 100vh;
+}
+
+/* ✅ Para pantallas pequeñas, el sidebar se oculta */
+@media (max-width: 768px) {
+  .dashboard-content {
+    margin-left: 0;
+  }
+}
