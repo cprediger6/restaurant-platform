@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
   try {
     // Obtener todas las cookies
     const cookieHeader = request.headers.get("cookie") || "";
-    const cookies = cookieHeader.split(";").map(c => c.trim());
+    const cookies = cookieHeader.split(";").map(c => c.trim()).filter(c => c);
     
     // Buscar cookies de sesión
     const sessionCookie = cookies.find(c => 
@@ -22,6 +22,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       hasSessionCookie: !!sessionCookie,
       sessionCookieName: sessionCookie?.split("=")[0] || "none",
+      sessionCookieValue: sessionCookie ? sessionCookie.split("=")[1]?.substring(0, 20) + "..." : null,
+      allCookies: cookies,
       session: session ? {
         authenticated: true,
         user: {
@@ -29,7 +31,6 @@ export async function GET(request: NextRequest) {
           role: session.user?.role,
         }
       } : null,
-      allCookies: cookies,
     });
   } catch (error) {
     console.error("Error:", error);
