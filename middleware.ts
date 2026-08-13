@@ -8,6 +8,9 @@ export default withAuth(
     const token = req.nextauth.token;
     const path = req.nextUrl.pathname;
 
+    console.log("🔍 [Middleware] Path:", path);
+    console.log("🔍 [Middleware] Token:", !!token);
+
     // Rutas públicas
     const publicPaths = [
       '/login',
@@ -19,12 +22,19 @@ export default withAuth(
       '/api/auth/error',
       '/api/test-db',
       '/api/auth/check-cookie',
+      '/api/auth/debug-set-cookie',
     ];
     
     const isPublicPath = publicPaths.some(p => path.startsWith(p));
 
     if (isPublicPath) {
-      return NextResponse.next();
+      const response = NextResponse.next();
+      // ✅ Headers de seguridad para cookies
+      response.headers.set(
+        "Set-Cookie",
+        "test-cookie=test; Path=/; HttpOnly; Secure; SameSite=Lax"
+      );
+      return response;
     }
 
     if (!token) {
@@ -36,6 +46,7 @@ export default withAuth(
   {
     callbacks: {
       authorized: ({ token }) => {
+        console.log("🔍 [Middleware authorized] Token:", !!token);
         return !!token;
       }
     }

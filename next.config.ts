@@ -3,13 +3,19 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // ✅ Ignorar errores de ESLint en build
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-  // ✅ Ignorar errores de TypeScript en build
-  typescript: {
-    ignoreBuildErrors: true,
+  // ✅ Permitir cookies en todos los dominios
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          {
+            key: "Set-Cookie",
+            value: "SameSite=Lax; Secure",
+          },
+        ],
+      },
+    ];
   },
 };
 

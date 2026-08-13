@@ -24,9 +24,6 @@ declare module "next-auth" {
   }
 }
 
-// ✅ Detectar si estamos en producción
-const isProduction = process.env.NODE_ENV === "production";
-
 export const authOptions: NextAuthOptions = {
   pages: {
     signIn: "/login",
@@ -58,23 +55,22 @@ export const authOptions: NextAuthOptions = {
   providers: [],
   session: {
     strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 días
+    maxAge: 30 * 24 * 60 * 60,
   },
-  // ✅ CONFIGURACIÓN CRÍTICA PARA PRODUCCIÓN
-  useSecureCookies: isProduction, // ✅ Esto es lo que faltaba
+  // ✅ CONFIGURACIÓN DE COOKIES - FORZADA para Vercel
+  useSecureCookies: true,
   cookies: {
     sessionToken: {
-      name: isProduction 
-        ? "__Secure-next-auth.session-token" 
-        : "next-auth.session-token",
+      name: "next-auth.session-token", // ⚠️ Sin __Secure para probar
       options: {
         httpOnly: true,
         sameSite: "lax",
         path: "/",
-        secure: isProduction,
+        secure: true,
+        // ⚠️ NO usar domain en Vercel
       },
     },
   },
-  secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
-  debug: !isProduction, // Debug solo en desarrollo
+  secret: process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET,
+  debug: true,
 };
