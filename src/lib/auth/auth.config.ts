@@ -2,6 +2,28 @@
 
 import { NextAuthOptions } from "next-auth";
 
+// ✅ Definir tipos específicos
+interface Permission {
+  id: string;
+  userId: string;
+  module: string;
+  canCreate: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
+  canApprove: boolean;
+  canExport: boolean;
+  canPrint: boolean;
+  canViewCost: boolean;
+}
+
+interface ExtendedUser {
+  id: string;
+  role: string;
+  companyId: string;
+  companyName: string;
+  permissions: Permission[];
+}
+
 declare module "next-auth" {
   interface Session {
     user: {
@@ -11,7 +33,7 @@ declare module "next-auth" {
       role: string;
       companyId: string;
       companyName: string;
-      permissions: any;
+      permissions: Permission[];
     }
   }
 
@@ -20,7 +42,7 @@ declare module "next-auth" {
     role?: string;
     companyId?: string;
     companyName?: string;
-    permissions?: any;
+    permissions?: Permission[];
   }
 }
 
@@ -32,12 +54,13 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        const u = user as any;
-        token.id = u.id;
-        token.role = u.role;
-        token.companyId = u.companyId;
-        token.companyName = u.companyName;
-        token.permissions = u.permissions;
+        // ✅ Usar el tipo ExtendedUser en lugar de any
+        const extendedUser = user as ExtendedUser;
+        token.id = extendedUser.id;
+        token.role = extendedUser.role;
+        token.companyId = extendedUser.companyId;
+        token.companyName = extendedUser.companyName;
+        token.permissions = extendedUser.permissions;
       }
       return token;
     },
@@ -47,7 +70,7 @@ export const authOptions: NextAuthOptions = {
         session.user.role = token.role as string;
         session.user.companyId = token.companyId as string;
         session.user.companyName = token.companyName as string;
-        session.user.permissions = token.permissions;
+        session.user.permissions = token.permissions as Permission[];
       }
       return session;
     },
@@ -57,17 +80,15 @@ export const authOptions: NextAuthOptions = {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60,
   },
-  // ✅ CONFIGURACIÓN DE COOKIES - FORZADA para Vercel
   useSecureCookies: true,
   cookies: {
     sessionToken: {
-      name: "next-auth.session-token", // ⚠️ Sin __Secure para probar
+      name: "next-auth.session-token",
       options: {
         httpOnly: true,
         sameSite: "lax",
         path: "/",
         secure: true,
-        // ⚠️ NO usar domain en Vercel
       },
     },
   },
