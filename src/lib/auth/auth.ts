@@ -23,6 +23,7 @@ const handler = NextAuth({
       async authorize(credentials) {
         // ✅ LOG 1: Función authorize llamada
         console.log("🔐 [Auth] authorize() INICIADO");
+         console.log("🔐 [Auth] authorize() INICIADO (MODO PRUEBA)");
 
         // ✅ LOG 2: Credenciales recibidas
         console.log("🔐 [Auth] Email recibido:", credentials?.email);
