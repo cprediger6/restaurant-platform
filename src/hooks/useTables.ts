@@ -2,7 +2,7 @@
 
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import { Table, Diner } from '@prisma/client'
 import { useSession } from 'next-auth/react'
 
@@ -20,7 +20,6 @@ export function useTables() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // ✅ Usar useCallback para memoizar las funciones
   const fetchTables = useCallback(async () => {
     if (!companyId) {
       setError('No se encontró la compañía del usuario')
@@ -58,15 +57,9 @@ export function useTables() {
     }
   }, [companyId])
 
-  // ✅ Effect con las dependencias correctas
-  useEffect(() => {
-    if (companyId) {
-      fetchTables()
-      fetchStats()
-    }
-  }, [companyId, fetchTables, fetchStats])
+  // ✅ Eliminar el useEffect que llama a fetchTables/fetchStats automáticamente
+  // Las páginas llamarán manualmente a estas funciones cuando sea necesario
 
-  // Resto de funciones...
   const createTable = async (data: { number: string; capacity: number; location?: string }) => {
     const response = await fetch('/api/tables', {
       method: 'POST',

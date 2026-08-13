@@ -1,14 +1,13 @@
-// src/components/auth/LoginForm.tsx
-
 'use client'
 
 import { signIn } from "next-auth/react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useSearchParams } from "next/navigation"  // ✅ Eliminar router si no se usa
 import { useState, Suspense } from "react"
 import { Loader2, Mail, Lock, AlertCircle, Building2, ShieldCheck, ArrowRight } from "lucide-react"
 
 function LoginFormContent() {
-  const router = useRouter()
+  // ✅ Eliminar router si no se usa
+  // const router = useRouter()
   const searchParams = useSearchParams()
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard"
 
@@ -23,18 +22,14 @@ function LoginFormContent() {
     setLoading(true)
 
     try {
-      // ✅ Usar redirect: true para dejar que NextAuth maneje la redirección
-      const result = await signIn("credentials", {
+      // ✅ Usar redirect: true
+      await signIn("credentials", {
         email,
         password,
         redirect: true,
         callbackUrl,
       })
-
-      // ⚠️ Si redirect: true, el código después de esto no se ejecuta
-      // porque NextAuth redirige automáticamente
-      console.log("✅ Login exitoso (esto no debería ejecutarse con redirect: true)")
-
+      // El código después de esto no se ejecuta con redirect: true
     } catch (err) {
       console.error("❌ Error de login:", err)
       setError("Ocurrió un error inesperado. Intenta nuevamente.")
