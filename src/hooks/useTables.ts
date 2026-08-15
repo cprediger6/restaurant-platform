@@ -31,6 +31,34 @@ export function useTables() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // ✅ Función para obtener una mesa por ID
+  const getTableById = useCallback(async (tableId: string) => {
+    if (!tableId) {
+      throw new Error('ID de mesa requerido')
+    }
+
+    setLoading(true)
+    setError(null)
+
+    try {
+      const response = await fetch(`/api/tables/${tableId}`)
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Error al cargar la mesa')
+      }
+
+      const data = await response.json()
+      return data
+    } catch (err) {
+      console.error('Error en getTableById:', err)
+      setError(err instanceof Error ? err.message : 'Error al cargar la mesa')
+      throw err
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
   const fetchTables = useCallback(async () => {
     if (!companyId) {
       setError('No se encontró la compañía del usuario')
@@ -45,7 +73,21 @@ export function useTables() {
         throw new Error('Error al cargar mesas')
       }
       const data = await response.json()
-      setTables(data)
+      
+      // Ordenar mesas numéricamente
+      const sortedData = [...data].sort((a, b) => {
+        const numA = parseInt(a.number)
+        const numB = parseInt(b.number)
+        
+        if (!isNaN(numA) && !isNaN(numB)) {
+          return numA - numB
+        }
+        if (!isNaN(numA)) return -1
+        if (!isNaN(numB)) return 1
+        return a.number.localeCompare(b.number)
+      })
+      
+      setTables(sortedData)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cargar mesas')
     } finally {
@@ -68,34 +110,24 @@ export function useTables() {
     }
   }, [companyId])
 
-  // src/hooks/useTables.ts
-
-// src/hooks/useTables.ts (mejorado)
-
-const createTable = useCallback(async (data: { number: string; capacity: number; location?: string }) => {
-  if (!companyId) {
-    throw new Error('No se encontró la compañía del usuario')
-  }
-
-  const response = await fetch('/api/tables', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...data, companyId })
-  })
-
-  if (!response.ok) {
-    const error = await response.json()
-    
-    // ✅ Mejorar mensajes de error específicos
-    if (error.message?.includes('Ya existe una mesa')) {
-      throw new Error(`La mesa "${data.number}" ya existe. Por favor, usa otro número.`)
+  const createTable = useCallback(async (data: { number: string; capacity: number; location?: string }) => {
+    if (!companyId) {
+      throw new Error('No se encontró la compañía del usuario')
     }
-    
-    throw new Error(error.message || 'Error al crear mesa')
-  }
 
-  return await response.json()
-}, [companyId])
+    const response = await fetch('/api/tables', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...data, companyId })
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.message || 'Error al crear mesa')
+    }
+
+    return await response.json()
+  }, [companyId])
 
   const addDiner = useCallback(async (tableId: string, name?: string) => {
     const response = await fetch(`/api/tables/${tableId}/diners`, {
@@ -160,6 +192,7 @@ const createTable = useCallback(async (data: { number: string; capacity: number;
     error,
     fetchTables,
     fetchStats,
+    getTableById,    // ✅ Agregar aquí
     createTable,
     addDiner,
     removeDiner,

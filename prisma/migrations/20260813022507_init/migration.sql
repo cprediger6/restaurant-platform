@@ -25,6 +25,13 @@ CREATE TYPE "OrderStatus" AS ENUM ('PENDING', 'IN_PREPARATION', 'READY', 'DELIVE
 -- CreateEnum
 CREATE TYPE "PaymentMethod" AS ENUM ('CASH', 'CREDIT_CARD', 'DEBIT_CARD', 'TRANSFER', 'OTHER');
 
+-- CreateEnum
+CREATE TYPE "ContaminationSeverity" AS ENUM ('HIGH', 'MEDIUM', 'LOW');
+
+-- ============================================================
+-- TABLAS EXISTENTES (se mantienen igual)
+-- ============================================================
+
 -- CreateTable
 CREATE TABLE "companies" (
     "id" TEXT NOT NULL,
@@ -646,305 +653,348 @@ CREATE TABLE "restaurant_payments" (
     CONSTRAINT "restaurant_payments_pkey" PRIMARY KEY ("id")
 );
 
--- CreateIndex
+-- ============================================================
+-- NUEVAS TABLAS PARA ALÉRGENOS Y RESTRICCIONES
+-- ============================================================
+
+-- CreateTable
+CREATE TABLE "ingredients" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "description" TEXT,
+    "productId" TEXT,
+    "unit" TEXT NOT NULL DEFAULT 'unidad',
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "companyId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ingredients_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "allergens" (
+    "id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "description" TEXT,
+    "icon" TEXT,
+    "color" TEXT,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "allergens_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "dietary_tags" (
+    "id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "description" TEXT,
+    "icon" TEXT,
+    "color" TEXT,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "dietary_tags_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ingredient_allergens" (
+    "id" TEXT NOT NULL,
+    "ingredientId" TEXT NOT NULL,
+    "allergenId" TEXT NOT NULL,
+    "notes" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ingredient_allergens_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "menu_items" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "description" TEXT,
+    "price" DOUBLE PRECISION NOT NULL,
+    "recipeId" TEXT,
+    "companyId" TEXT NOT NULL,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "menu_items_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "menu_item_allergens" (
+    "id" TEXT NOT NULL,
+    "menuItemId" TEXT NOT NULL,
+    "allergenId" TEXT NOT NULL,
+    "source" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "menu_item_allergens_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "menu_item_dietary_tags" (
+    "id" TEXT NOT NULL,
+    "menuItemId" TEXT NOT NULL,
+    "dietaryTagId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "menu_item_dietary_tags_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "cross_contamination" (
+    "id" TEXT NOT NULL,
+    "menuItemId" TEXT NOT NULL,
+    "allergenId" TEXT NOT NULL,
+    "description" TEXT,
+    "severity" "ContaminationSeverity" NOT NULL DEFAULT 'MEDIUM',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "cross_contamination_pkey" PRIMARY KEY ("id")
+);
+
+-- ============================================================
+-- ÍNDICES
+-- ============================================================
+
+-- Índices existentes
 CREATE UNIQUE INDEX "companies_ruc_key" ON "companies"("ruc");
 
--- CreateIndex
 CREATE UNIQUE INDEX "locations_barcode_key" ON "locations"("barcode");
 
--- CreateIndex
 CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
 
--- CreateIndex
 CREATE UNIQUE INDEX "products_internalCode_key" ON "products"("internalCode");
-
--- CreateIndex
 CREATE UNIQUE INDEX "products_sku_key" ON "products"("sku");
-
--- CreateIndex
 CREATE UNIQUE INDEX "products_barcode_key" ON "products"("barcode");
-
--- CreateIndex
 CREATE UNIQUE INDEX "products_qrCode_key" ON "products"("qrCode");
 
--- CreateIndex
 CREATE UNIQUE INDEX "variants_sku_key" ON "variants"("sku");
-
--- CreateIndex
 CREATE UNIQUE INDEX "variants_barcode_key" ON "variants"("barcode");
 
--- CreateIndex
 CREATE UNIQUE INDEX "suppliers_ruc_key" ON "suppliers"("ruc");
-
--- CreateIndex
 CREATE UNIQUE INDEX "clients_ruc_key" ON "clients"("ruc");
 
--- CreateIndex
 CREATE UNIQUE INDEX "purchases_number_key" ON "purchases"("number");
-
--- CreateIndex
 CREATE UNIQUE INDEX "sales_number_key" ON "sales"("number");
 
--- CreateIndex
 CREATE UNIQUE INDEX "settings_companyId_key" ON "settings"("companyId");
-
--- CreateIndex
 CREATE UNIQUE INDEX "currencies_code_key" ON "currencies"("code");
-
--- CreateIndex
 CREATE UNIQUE INDEX "currencies_code_companyId_key" ON "currencies"("code", "companyId");
-
--- CreateIndex
 CREATE UNIQUE INDEX "country_taxes_country_key" ON "country_taxes"("country");
-
--- CreateIndex
 CREATE UNIQUE INDEX "report_settings_companyId_reportId_key" ON "report_settings"("companyId", "reportId");
-
--- CreateIndex
 CREATE UNIQUE INDEX "security_settings_companyId_key" ON "security_settings"("companyId");
-
--- CreateIndex
 CREATE UNIQUE INDEX "user_sessions_sessionToken_key" ON "user_sessions"("sessionToken");
 
--- CreateIndex
 CREATE INDEX "user_sessions_userId_idx" ON "user_sessions"("userId");
-
--- CreateIndex
 CREATE INDEX "user_sessions_sessionToken_idx" ON "user_sessions"("sessionToken");
-
--- CreateIndex
 CREATE INDEX "login_attempts_email_idx" ON "login_attempts"("email");
-
--- CreateIndex
 CREATE INDEX "login_attempts_userId_idx" ON "login_attempts"("userId");
-
--- CreateIndex
 CREATE INDEX "login_attempts_timestamp_idx" ON "login_attempts"("timestamp");
 
--- CreateIndex
 CREATE INDEX "tables_companyId_idx" ON "tables"("companyId");
-
--- CreateIndex
 CREATE INDEX "tables_status_idx" ON "tables"("status");
-
--- CreateIndex
 CREATE UNIQUE INDEX "tables_companyId_number_key" ON "tables"("companyId", "number");
 
--- CreateIndex
 CREATE INDEX "diners_tableId_idx" ON "diners"("tableId");
-
--- CreateIndex
 CREATE INDEX "diners_active_idx" ON "diners"("active");
 
--- CreateIndex
 CREATE INDEX "recipes_companyId_idx" ON "recipes"("companyId");
-
--- CreateIndex
 CREATE INDEX "recipes_isActive_idx" ON "recipes"("isActive");
 
--- CreateIndex
 CREATE INDEX "recipe_ingredients_recipeId_idx" ON "recipe_ingredients"("recipeId");
-
--- CreateIndex
 CREATE INDEX "recipe_ingredients_productId_idx" ON "recipe_ingredients"("productId");
-
--- CreateIndex
 CREATE UNIQUE INDEX "recipe_ingredients_recipeId_productId_key" ON "recipe_ingredients"("recipeId", "productId");
 
--- CreateIndex
 CREATE INDEX "orders_dinerId_idx" ON "orders"("dinerId");
-
--- CreateIndex
 CREATE INDEX "orders_status_idx" ON "orders"("status");
 
--- CreateIndex
 CREATE INDEX "order_items_orderId_idx" ON "order_items"("orderId");
 
--- CreateIndex
 CREATE INDEX "restaurant_payments_orderId_idx" ON "restaurant_payments"("orderId");
 
--- AddForeignKey
+-- Nuevos índices
+CREATE INDEX "ingredients_companyId_idx" ON "ingredients"("companyId");
+CREATE INDEX "ingredients_isActive_idx" ON "ingredients"("isActive");
+
+CREATE UNIQUE INDEX "allergens_code_key" ON "allergens"("code");
+
+CREATE UNIQUE INDEX "dietary_tags_code_key" ON "dietary_tags"("code");
+
+CREATE UNIQUE INDEX "ingredient_allergens_ingredientId_allergenId_key" ON "ingredient_allergens"("ingredientId", "allergenId");
+CREATE INDEX "ingredient_allergens_ingredientId_idx" ON "ingredient_allergens"("ingredientId");
+CREATE INDEX "ingredient_allergens_allergenId_idx" ON "ingredient_allergens"("allergenId");
+
+CREATE INDEX "menu_items_companyId_idx" ON "menu_items"("companyId");
+CREATE INDEX "menu_items_isActive_idx" ON "menu_items"("isActive");
+
+CREATE UNIQUE INDEX "menu_item_allergens_menuItemId_allergenId_key" ON "menu_item_allergens"("menuItemId", "allergenId");
+
+CREATE UNIQUE INDEX "menu_item_dietary_tags_menuItemId_dietaryTagId_key" ON "menu_item_dietary_tags"("menuItemId", "dietaryTagId");
+
+CREATE UNIQUE INDEX "cross_contamination_menuItemId_allergenId_key" ON "cross_contamination"("menuItemId", "allergenId");
+
+-- ============================================================
+-- AGREGAR ingredientId A recipe_ingredients
+-- ============================================================
+
+-- Paso 1: Agregar la columna permitiendo NULL temporalmente
+ALTER TABLE "recipe_ingredients" ADD COLUMN "ingredientId" TEXT;
+
+-- Paso 2: Crear un ingrediente por cada producto existente
+INSERT INTO "ingredients" ("id", "name", "description", "productId", "companyId", "isActive", "createdAt", "updatedAt", "unit")
+SELECT 
+    gen_random_uuid()::text,
+    p."name",
+    p."description",
+    p."id",
+    p."companyId",
+    true,
+    NOW(),
+    NOW(),
+    'unidad'
+FROM "products" p
+WHERE p."id" IN (SELECT DISTINCT "productId" FROM "recipe_ingredients");
+
+-- Paso 3: Actualizar recipe_ingredients con el ingredientId correspondiente
+UPDATE "recipe_ingredients" ri
+SET "ingredientId" = i."id"
+FROM "ingredients" i
+WHERE ri."productId" = i."productId";
+
+-- Paso 4: Hacer la columna NOT NULL
+ALTER TABLE "recipe_ingredients" ALTER COLUMN "ingredientId" SET NOT NULL;
+
+-- ============================================================
+-- FOREIGN KEYS (Nuevos y actualizados)
+-- ============================================================
+
+-- Foreign Keys existentes
 ALTER TABLE "companies" ADD CONSTRAINT "companies_countryTaxId_fkey" FOREIGN KEY ("countryTaxId") REFERENCES "country_taxes"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "warehouses" ADD CONSTRAINT "warehouses_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "locations" ADD CONSTRAINT "locations_warehouseId_fkey" FOREIGN KEY ("warehouseId") REFERENCES "warehouses"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "users" ADD CONSTRAINT "users_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "permissions" ADD CONSTRAINT "permissions_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "audits" ADD CONSTRAINT "audits_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "products" ADD CONSTRAINT "products_categoryId_fkey" FOREIGN KEY ("categoryId") REFERENCES "categories"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "products" ADD CONSTRAINT "products_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "products" ADD CONSTRAINT "products_subcategoryId_fkey" FOREIGN KEY ("subcategoryId") REFERENCES "subcategories"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "variants" ADD CONSTRAINT "variants_productId_fkey" FOREIGN KEY ("productId") REFERENCES "products"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "categories" ADD CONSTRAINT "categories_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "subcategories" ADD CONSTRAINT "subcategories_categoryId_fkey" FOREIGN KEY ("categoryId") REFERENCES "categories"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "inventory_items" ADD CONSTRAINT "inventory_items_locationId_fkey" FOREIGN KEY ("locationId") REFERENCES "locations"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "inventory_items" ADD CONSTRAINT "inventory_items_productId_fkey" FOREIGN KEY ("productId") REFERENCES "products"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "inventory_items" ADD CONSTRAINT "inventory_items_variantId_fkey" FOREIGN KEY ("variantId") REFERENCES "variants"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "inventory_items" ADD CONSTRAINT "inventory_items_warehouseId_fkey" FOREIGN KEY ("warehouseId") REFERENCES "warehouses"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "inventory_movements" ADD CONSTRAINT "inventory_movements_inventoryItemId_fkey" FOREIGN KEY ("inventoryItemId") REFERENCES "inventory_items"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "inventory_movements" ADD CONSTRAINT "inventory_movements_sourceWarehouseId_fkey" FOREIGN KEY ("sourceWarehouseId") REFERENCES "warehouses"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "inventory_movements" ADD CONSTRAINT "inventory_movements_targetWarehouseId_fkey" FOREIGN KEY ("targetWarehouseId") REFERENCES "warehouses"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "inventory_movements" ADD CONSTRAINT "inventory_movements_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "kardex" ADD CONSTRAINT "kardex_inventoryItemId_fkey" FOREIGN KEY ("inventoryItemId") REFERENCES "inventory_items"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "kardex" ADD CONSTRAINT "kardex_movementId_fkey" FOREIGN KEY ("movementId") REFERENCES "inventory_movements"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "suppliers" ADD CONSTRAINT "suppliers_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "clients" ADD CONSTRAINT "clients_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "contacts" ADD CONSTRAINT "contacts_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "clients"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "contacts" ADD CONSTRAINT "contacts_supplierId_fkey" FOREIGN KEY ("supplierId") REFERENCES "suppliers"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "purchases" ADD CONSTRAINT "purchases_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "purchases" ADD CONSTRAINT "purchases_supplierId_fkey" FOREIGN KEY ("supplierId") REFERENCES "suppliers"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "purchases" ADD CONSTRAINT "purchases_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "purchases" ADD CONSTRAINT "purchases_warehouseId_fkey" FOREIGN KEY ("warehouseId") REFERENCES "warehouses"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "purchase_details" ADD CONSTRAINT "purchase_details_productId_fkey" FOREIGN KEY ("productId") REFERENCES "products"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "purchase_details" ADD CONSTRAINT "purchase_details_purchaseId_fkey" FOREIGN KEY ("purchaseId") REFERENCES "purchases"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "purchase_details" ADD CONSTRAINT "purchase_details_variantId_fkey" FOREIGN KEY ("variantId") REFERENCES "variants"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "sales" ADD CONSTRAINT "sales_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "clients"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "sales" ADD CONSTRAINT "sales_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "sales" ADD CONSTRAINT "sales_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "sales" ADD CONSTRAINT "sales_warehouseId_fkey" FOREIGN KEY ("warehouseId") REFERENCES "warehouses"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "sale_details" ADD CONSTRAINT "sale_details_productId_fkey" FOREIGN KEY ("productId") REFERENCES "products"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "sale_details" ADD CONSTRAINT "sale_details_saleId_fkey" FOREIGN KEY ("saleId") REFERENCES "sales"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "sale_details" ADD CONSTRAINT "sale_details_variantId_fkey" FOREIGN KEY ("variantId") REFERENCES "variants"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "payments" ADD CONSTRAINT "payments_purchaseId_fkey" FOREIGN KEY ("purchaseId") REFERENCES "purchases"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "payments" ADD CONSTRAINT "payments_saleId_fkey" FOREIGN KEY ("saleId") REFERENCES "sales"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "documents" ADD CONSTRAINT "documents_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "clients"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "documents" ADD CONSTRAINT "documents_purchaseId_fkey" FOREIGN KEY ("purchaseId") REFERENCES "purchases"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "documents" ADD CONSTRAINT "documents_saleId_fkey" FOREIGN KEY ("saleId") REFERENCES "sales"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "documents" ADD CONSTRAINT "documents_supplierId_fkey" FOREIGN KEY ("supplierId") REFERENCES "suppliers"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "settings" ADD CONSTRAINT "settings_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "currencies" ADD CONSTRAINT "currencies_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "report_settings" ADD CONSTRAINT "report_settings_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "security_settings" ADD CONSTRAINT "security_settings_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "user_sessions" ADD CONSTRAINT "user_sessions_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "login_attempts" ADD CONSTRAINT "login_attempts_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "tables" ADD CONSTRAINT "tables_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "diners" ADD CONSTRAINT "diners_tableId_fkey" FOREIGN KEY ("tableId") REFERENCES "tables"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "recipes" ADD CONSTRAINT "recipes_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "recipe_ingredients" ADD CONSTRAINT "recipe_ingredients_recipeId_fkey" FOREIGN KEY ("recipeId") REFERENCES "recipes"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "recipe_ingredients" ADD CONSTRAINT "recipe_ingredients_productId_fkey" FOREIGN KEY ("productId") REFERENCES "products"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "recipe_ingredients" ADD CONSTRAINT "recipe_ingredients_ingredientId_fkey" FOREIGN KEY ("ingredientId") REFERENCES "ingredients"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "orders" ADD CONSTRAINT "orders_dinerId_fkey" FOREIGN KEY ("dinerId") REFERENCES "diners"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "order_items" ADD CONSTRAINT "order_items_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "orders"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "order_items" ADD CONSTRAINT "order_items_productId_fkey" FOREIGN KEY ("productId") REFERENCES "products"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "order_items" ADD CONSTRAINT "order_items_variantId_fkey" FOREIGN KEY ("variantId") REFERENCES "variants"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "restaurant_payments" ADD CONSTRAINT "restaurant_payments_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "orders"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- Nuevas Foreign Keys
+ALTER TABLE "ingredients" ADD CONSTRAINT "ingredients_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "ingredients" ADD CONSTRAINT "ingredients_productId_fkey" FOREIGN KEY ("productId") REFERENCES "products"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+ALTER TABLE "ingredient_allergens" ADD CONSTRAINT "ingredient_allergens_ingredientId_fkey" FOREIGN KEY ("ingredientId") REFERENCES "ingredients"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "ingredient_allergens" ADD CONSTRAINT "ingredient_allergens_allergenId_fkey" FOREIGN KEY ("allergenId") REFERENCES "allergens"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE "menu_items" ADD CONSTRAINT "menu_items_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "menu_items" ADD CONSTRAINT "menu_items_recipeId_fkey" FOREIGN KEY ("recipeId") REFERENCES "recipes"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+ALTER TABLE "menu_item_allergens" ADD CONSTRAINT "menu_item_allergens_menuItemId_fkey" FOREIGN KEY ("menuItemId") REFERENCES "menu_items"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "menu_item_allergens" ADD CONSTRAINT "menu_item_allergens_allergenId_fkey" FOREIGN KEY ("allergenId") REFERENCES "allergens"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE "menu_item_dietary_tags" ADD CONSTRAINT "menu_item_dietary_tags_menuItemId_fkey" FOREIGN KEY ("menuItemId") REFERENCES "menu_items"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "menu_item_dietary_tags" ADD CONSTRAINT "menu_item_dietary_tags_dietaryTagId_fkey" FOREIGN KEY ("dietaryTagId") REFERENCES "dietary_tags"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE "cross_contamination" ADD CONSTRAINT "cross_contamination_menuItemId_fkey" FOREIGN KEY ("menuItemId") REFERENCES "menu_items"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "cross_contamination" ADD CONSTRAINT "cross_contamination_allergenId_fkey" FOREIGN KEY ("allergenId") REFERENCES "allergens"("id") ON DELETE CASCADE ON UPDATE CASCADE;

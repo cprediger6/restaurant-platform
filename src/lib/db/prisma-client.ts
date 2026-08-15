@@ -1,25 +1,45 @@
 // src/lib/db/prisma-client.ts
 
-//import 'server-only'  // ✅ Esto evita que se importe en el cliente
 import { PrismaClient } from '@prisma/client'
-import { PrismaNeon } from '@prisma/adapter-neon'
+import { PrismaPg } from '@prisma/adapter-pg'
+import { Pool } from 'pg'
 
+// Configuración para Prisma Accelerate o conexión directa
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
-function createPrismaClient() {
-  if (!process.env.DATABASE_URL) {
-    throw new Error('DATABASE_URL no está definida en las variables de entorno')
-  }
+// Si usas Prisma Accelerate, usa esta configuración
+// const accelerateUrl = process.env.PRISMA_ACCELERATE_URL
 
-  const adapter = new PrismaNeon({
-    connectionString: process.env.DATABASE_URL,
-  })
+// Configuración para conexión directa con Driver Adapter
+const connectionString = process.env.DATABASE_URL
 
-  return new PrismaClient({ adapter })
+if (!connectionString) {
+  throw new Error('DATABASE_URL no está definida en el archivo .env')
 }
 
-export const prisma = globalForPrisma.prisma ?? createPrismaClient()
+// Crear pool de conexiones para PostgreSQL
+const pool = new Pool({ 
+  connectionString,
+  // Configuración adicional para NeonDB
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000,
+})
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+// Crear adaptador
+const adapter = new PrismaPg(pool)
+
+// Crear instancia de PrismaClient con el adaptador
+export const prisma = globalForPrisma.prisma || new PrismaClient({
+  adapter,
+  // Si usas Prisma Accelerate, usa:
+  // accelerateUrl: process.env.PRISMA_ACCELERATE_URL
+})
+
+if (process.env.NODE_ENV !== 'production') {
+  globalForPrisma.prisma = prisma
+}
+
+export default prisma

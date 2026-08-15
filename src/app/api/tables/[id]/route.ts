@@ -1,4 +1,4 @@
-// src/app/api/diners/[id]/route.ts
+// src/app/api/tables/[id]/route.ts
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
@@ -7,9 +7,10 @@ import { TablesService } from '@/lib/services/tables.service'
 
 const tablesService = new TablesService()
 
-export async function DELETE(
+// GET - Obtener una mesa por ID
+export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> } // ✅ Cambiar a Promise
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getServerSession(authOptions)
   
@@ -18,15 +19,47 @@ export async function DELETE(
   }
 
   try {
-    // ✅ Usar await en params
     const { id } = await params
+    const table = await tablesService.getTableById(id)
+    
+    if (!table) {
+      return NextResponse.json({ error: 'Mesa no encontrada' }, { status: 404 })
+    }
 
-    const result = await tablesService.removeDiner(id)
+    // Verificar que la mesa pertenece a la compañía del usuario
+    if (table.companyId !== session.user.companyId) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+    }
+
+    return NextResponse.json(table)
+  } catch (error) {
+    console.error('Error en GET /api/tables/[id]:', error)
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Error al obtener la mesa' },
+      { status: 500 }
+    )
+  }
+}
+
+// DELETE - Eliminar una mesa
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await getServerSession(authOptions)
+  
+  if (!session?.user) {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  }
+
+  try {
+    const { id } = await params
+    const result = await tablesService.deleteTable(id)
     return NextResponse.json(result)
   } catch (error) {
-    console.error('Error al retirar comensal:', error)
+    console.error('Error en DELETE /api/tables/[id]:', error)
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Error al retirar comensal' },
+      { error: error instanceof Error ? error.message : 'Error al eliminar mesa' },
       { status: 400 }
     )
   }

@@ -9,7 +9,7 @@ const tablesService = new TablesService()
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getServerSession(authOptions)
   
@@ -18,7 +18,8 @@ export async function DELETE(
   }
 
   try {
-    const result = await tablesService.removeDiner(params.id)
+    const { id } = await params
+    const result = await tablesService.removeDiner(id)
     return NextResponse.json(result)
   } catch (error) {
     console.error('Error al retirar comensal:', error)

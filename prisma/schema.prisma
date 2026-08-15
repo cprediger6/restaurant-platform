@@ -8,7 +8,6 @@ datasource db {
   // url      = env("DATABASE_URL")
 }
 
-
 // ============================================================
 // ENUMS
 // ============================================================
@@ -83,25 +82,32 @@ enum PaymentMethod {
   OTHER
 }
 
+// Enums para Alérgenos y Restricciones
+enum ContaminationSeverity {
+  HIGH
+  MEDIUM
+  LOW
+}
+
 // ============================================================
 // MODELOS DEL ERP
 // ============================================================
 
 model Company {
-  id               String            @id @default(cuid())
-  name             String
-  ruc              String            @unique
-  logo             String?
-  address          String
-  currency         String            @default("USD")
-  timezone         String            @default("America/Panama")
-  country          String            @default("Panama")
-  taxRate          Float             @default(0)
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  countryTaxId     String?
-  taxName          String?           @default("ITBMS")
-  
+  id           String   @id @default(cuid())
+  name         String
+  ruc          String   @unique
+  logo         String?
+  address      String
+  currency     String   @default("USD")
+  timezone     String   @default("America/Panama")
+  country      String   @default("Panama")
+  taxRate      Float    @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  countryTaxId String?
+  taxName      String?  @default("ITBMS")
+
   categories       Category[]
   clients          Client[]
   countryTax       CountryTax?       @relation(fields: [countryTaxId], references: [id])
@@ -115,24 +121,26 @@ model Company {
   suppliers        Supplier[]
   users            User[]
   warehouses       Warehouse[]
-  tables           Table[]           // Restaurante
-  recipes          Recipe[]          // Restaurante
+  tables           Table[]
+  recipes          Recipe[]
+  ingredients      Ingredient[]
+  menuItems        MenuItem[]
 
   @@map("companies")
 }
 
 model Warehouse {
-  id              String              @id @default(cuid())
-  name            String
-  type            String
-  address         String?
-  phone           String?
-  email           String?
-  isActive        Boolean             @default(true)
-  companyId       String
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
-  
+  id        String   @id @default(cuid())
+  name      String
+  type      String
+  address   String?
+  phone     String?
+  email     String?
+  isActive  Boolean  @default(true)
+  companyId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   inventory       InventoryItem[]
   sourceMovements InventoryMovement[] @relation("SourceWarehouse")
   targetMovements InventoryMovement[] @relation("TargetWarehouse")
@@ -145,50 +153,51 @@ model Warehouse {
 }
 
 model Location {
-  id          String          @id @default(cuid())
+  id          String   @id @default(cuid())
   aisle       String
   shelf       String
   level       String
   position    String
-  barcode     String?         @unique
+  barcode     String?  @unique
   warehouseId String
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-  
-  inventory   InventoryItem[]
-  warehouse   Warehouse       @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  inventory InventoryItem[]
+  warehouse Warehouse       @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
 
   @@map("locations")
 }
 
 model User {
-  id                  String              @id @default(cuid())
-  email               String              @unique
+  id                  String    @id @default(cuid())
+  email               String    @unique
   password            String
   name                String
   lastName            String
   phone               String?
-  role                UserRole            @default(WAITER)
+  role                UserRole  @default(WAITER)
   companyId           String
-  isActive            Boolean             @default(true)
+  isActive            Boolean   @default(true)
   lastLogin           DateTime?
-  createdAt           DateTime            @default(now())
-  updatedAt           DateTime            @updatedAt
-  failedLoginAttempts Int                 @default(0)
-  lastPasswordChange  DateTime?           @default(now())
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  failedLoginAttempts Int       @default(0)
+  lastPasswordChange  DateTime? @default(now())
   lockedUntil         DateTime?
-  twoFactorEnabled    Boolean             @default(false)
+  twoFactorEnabled    Boolean   @default(false)
   twoFactorSecret     String?
   passwordHistory     Json?
-  
-  audits              Audit[]
-  inventoryMovements  InventoryMovement[]
-  loginAttempts       LoginAttempt[]
-  permissions         Permission[]
-  purchases           Purchase[]
-  sales               Sale[]
-  company             Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  sessions            UserSession[]
+
+  audits             Audit[]
+  inventoryMovements InventoryMovement[]
+  loginAttempts      LoginAttempt[]
+  permissions        Permission[]
+  purchases          Purchase[]
+  sales              Sale[]
+  company            Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  sessions           UserSession[]
+  orderAudits         OrderAudit[] 
 
   @@map("users")
 }
@@ -206,8 +215,8 @@ model Permission {
   canViewCost Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("permissions")
 }
@@ -223,36 +232,36 @@ model Audit {
   ipAddress String?
   userAgent String?
   createdAt DateTime @default(now())
-  
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("audits")
 }
 
 model Product {
-  id              String           @id @default(cuid())
-  internalCode    String           @unique
-  sku             String           @unique
-  barcode         String?          @unique
-  qrCode          String?          @unique
-  name            String
-  description     String?
-  brand           String?
-  model           String?
-  color           String?
-  size            String?
-  weight          Float?
-  dimensions      Json?
-  images          String[]         @default([])
-  isActive        Boolean          @default(true)
-  hasIva          Boolean          @default(true)
-  unitOfMeasure   String           @default("Unidad")
-  categoryId      String?
-  subcategoryId   String?
-  companyId       String
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  
+  id            String   @id @default(cuid())
+  internalCode  String   @unique
+  sku           String   @unique
+  barcode       String?  @unique
+  qrCode        String?  @unique
+  name          String
+  description   String?
+  brand         String?
+  model         String?
+  color         String?
+  size          String?
+  weight        Float?
+  dimensions    Json?
+  images        String[] @default([])
+  isActive      Boolean  @default(true)
+  hasIva        Boolean  @default(true)
+  unitOfMeasure String   @default("Unidad")
+  categoryId    String?
+  subcategoryId String?
+  companyId     String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
   inventory       InventoryItem[]
   category        Category?        @relation(fields: [categoryId], references: [id])
   company         Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -260,42 +269,42 @@ model Product {
   purchaseDetails PurchaseDetail[]
   saleDetails     SaleDetail[]
   variants        Variant[]
-  recipeIngredients RecipeIngredient[]  // Restaurante
-  orderItems      OrderItem[]           // Restaurante
+  ingredients     Ingredient[] // Relación con ingredientes del restaurante
+  orderItems      OrderItem[]
 
   @@map("products")
 }
 
 model Variant {
-  id              String           @id @default(cuid())
-  productId       String
-  name            String
-  value           String
-  price           Float
-  cost            Float
-  sku             String?          @unique
-  barcode         String?          @unique
-  stock           Float            @default(0)
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  
+  id        String   @id @default(cuid())
+  productId String
+  name      String
+  value     String
+  price     Float
+  cost      Float
+  sku       String?  @unique
+  barcode   String?  @unique
+  stock     Float    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   inventoryItems  InventoryItem[]
   purchaseDetails PurchaseDetail[]
   saleDetails     SaleDetail[]
   product         Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
-  orderItems      OrderItem[]      // Restaurante
+  orderItems      OrderItem[]
 
   @@map("variants")
 }
 
 model Category {
-  id            String        @id @default(cuid())
-  name          String
-  description   String?
-  companyId     String
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  companyId   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
   company       Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
   products      Product[]
   subcategories Subcategory[]
@@ -304,51 +313,51 @@ model Category {
 }
 
 model Subcategory {
-  id          String    @id @default(cuid())
+  id          String   @id @default(cuid())
   name        String
   description String?
   categoryId  String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  
-  products    Product[]
-  category    Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  products Product[]
+  category Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
   @@map("subcategories")
 }
 
 model InventoryItem {
-  id             String              @id @default(cuid())
+  id             String     @id @default(cuid())
   productId      String
   variantId      String?
   warehouseId    String
   locationId     String?
-  currentStock   Float               @default(0)
-  availableStock Float               @default(0)
-  reservedStock  Float               @default(0)
-  transitStock   Float               @default(0)
-  minStock       Float               @default(0)
-  maxStock       Float               @default(0)
-  reorderPoint   Float               @default(0)
-  costMethod     CostMethod          @default(FIFO)
+  currentStock   Float      @default(0)
+  availableStock Float      @default(0)
+  reservedStock  Float      @default(0)
+  transitStock   Float      @default(0)
+  minStock       Float      @default(0)
+  maxStock       Float      @default(0)
+  reorderPoint   Float      @default(0)
+  costMethod     CostMethod @default(FIFO)
   standardCost   Float?
   lastCost       Float?
   averageCost    Float?
-  createdAt      DateTime            @default(now())
-  updatedAt      DateTime            @updatedAt
-  
-  location       Location?           @relation(fields: [locationId], references: [id])
-  product        Product             @relation(fields: [productId], references: [id], onDelete: Cascade)
-  variant        Variant?            @relation(fields: [variantId], references: [id])
-  warehouse      Warehouse           @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
-  movements      InventoryMovement[]
-  kardex         Kardex[]
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  location  Location?           @relation(fields: [locationId], references: [id])
+  product   Product             @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variant   Variant?            @relation(fields: [variantId], references: [id])
+  warehouse Warehouse           @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  movements InventoryMovement[]
+  kardex    Kardex[]
 
   @@map("inventory_items")
 }
 
 model InventoryMovement {
-  id                String        @id @default(cuid())
+  id                String       @id @default(cuid())
   type              MovementType
   quantity          Float
   unitCost          Float
@@ -361,128 +370,128 @@ model InventoryMovement {
   userId            String
   approvedBy        String?
   approvedAt        DateTime?
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
-  
-  inventoryItem     InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
-  sourceWarehouse   Warehouse?    @relation("SourceWarehouse", fields: [sourceWarehouseId], references: [id])
-  targetWarehouse   Warehouse?    @relation("TargetWarehouse", fields: [targetWarehouseId], references: [id])
-  user              User          @relation(fields: [userId], references: [id])
-  kardex            Kardex[]
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  inventoryItem   InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
+  sourceWarehouse Warehouse?    @relation("SourceWarehouse", fields: [sourceWarehouseId], references: [id])
+  targetWarehouse Warehouse?    @relation("TargetWarehouse", fields: [targetWarehouseId], references: [id])
+  user            User          @relation(fields: [userId], references: [id])
+  kardex          Kardex[]
 
   @@map("inventory_movements")
 }
 
 model Kardex {
-  id              String            @id @default(cuid())
-  date            DateTime          @default(now())
+  id              String   @id @default(cuid())
+  date            DateTime @default(now())
   movementId      String
   inventoryItemId String
-  quantityIn      Float             @default(0)
-  quantityOut     Float             @default(0)
-  balance         Float             @default(0)
-  unitCost        Float             @default(0)
-  totalCost       Float             @default(0)
-  balanceCost     Float             @default(0)
-  createdAt       DateTime          @default(now())
-  
-  inventoryItem   InventoryItem     @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
-  movement        InventoryMovement @relation(fields: [movementId], references: [id], onDelete: Cascade)
+  quantityIn      Float    @default(0)
+  quantityOut     Float    @default(0)
+  balance         Float    @default(0)
+  unitCost        Float    @default(0)
+  totalCost       Float    @default(0)
+  balanceCost     Float    @default(0)
+  createdAt       DateTime @default(now())
+
+  inventoryItem InventoryItem     @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
+  movement      InventoryMovement @relation(fields: [movementId], references: [id], onDelete: Cascade)
 
   @@map("kardex")
 }
 
 model Supplier {
-  id            String     @id @default(cuid())
+  id            String   @id @default(cuid())
   name          String
   email         String?
   phone         String?
-  ruc           String?    @unique
+  ruc           String?  @unique
   address       String?
   contactPerson String?
   creditLimit   Float?
   paymentTerms  String?
-  isActive      Boolean    @default(true)
+  isActive      Boolean  @default(true)
   companyId     String
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
-  
-  contacts      Contact[]
-  documents     Document[]
-  purchases     Purchase[]
-  company       Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  contacts  Contact[]
+  documents Document[]
+  purchases Purchase[]
+  company   Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@map("suppliers")
 }
 
 model Client {
-  id            String     @id @default(cuid())
+  id            String   @id @default(cuid())
   name          String
   email         String?
   phone         String?
-  ruc           String?    @unique
+  ruc           String?  @unique
   address       String?
   contactPerson String?
   creditLimit   Float?
   paymentTerms  String?
-  isActive      Boolean    @default(true)
+  isActive      Boolean  @default(true)
   companyId     String
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
-  
-  company       Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  contacts      Contact[]
-  documents     Document[]
-  sales         Sale[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  company   Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contacts  Contact[]
+  documents Document[]
+  sales     Sale[]
 
   @@map("clients")
 }
 
 model Contact {
-  id         String    @id @default(cuid())
+  id         String   @id @default(cuid())
   name       String
   email      String?
   phone      String?
   position   String?
-  isPrimary  Boolean   @default(false)
+  isPrimary  Boolean  @default(false)
   clientId   String?
   supplierId String?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  
-  client     Client?   @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  supplier   Supplier? @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  client   Client?   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  supplier Supplier? @relation(fields: [supplierId], references: [id], onDelete: Cascade)
 
   @@map("contacts")
 }
 
 model Purchase {
-  id           String           @id @default(cuid())
-  number       String           @unique
-  status       PurchaseStatus   @default(PENDING)
+  id           String         @id @default(cuid())
+  number       String         @unique
+  status       PurchaseStatus @default(PENDING)
   supplierId   String
   userId       String
   companyId    String
   warehouseId  String?
-  purchaseDate DateTime         @default(now())
+  purchaseDate DateTime       @default(now())
   expectedDate DateTime?
   receivedDate DateTime?
-  subtotal     Float            @default(0)
-  tax          Float            @default(0)
-  total        Float            @default(0)
-  currency     String           @default("USD")
-  exchangeRate Float            @default(1)
+  subtotal     Float          @default(0)
+  tax          Float          @default(0)
+  total        Float          @default(0)
+  currency     String         @default("USD")
+  exchangeRate Float          @default(1)
   notes        String?
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
-  
-  documents    Document[]
-  payments     Payment[]
-  company      Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  supplier     Supplier         @relation(fields: [supplierId], references: [id])
-  user         User             @relation(fields: [userId], references: [id])
-  warehouse    Warehouse?       @relation(fields: [warehouseId], references: [id])
-  details      PurchaseDetail[]
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  documents Document[]
+  payments  Payment[]
+  company   Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  supplier  Supplier         @relation(fields: [supplierId], references: [id])
+  user      User             @relation(fields: [userId], references: [id])
+  warehouse Warehouse?       @relation(fields: [warehouseId], references: [id])
+  details   PurchaseDetail[]
 
   @@map("purchases")
 }
@@ -498,45 +507,45 @@ model PurchaseDetail {
   received   Float    @default(0)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
-  
-  product    Product  @relation(fields: [productId], references: [id])
-  purchase   Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
-  variant    Variant? @relation(fields: [variantId], references: [id])
+
+  product  Product  @relation(fields: [productId], references: [id])
+  purchase Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  variant  Variant? @relation(fields: [variantId], references: [id])
 
   @@map("purchase_details")
 }
 
 model Sale {
-  id           String       @id @default(cuid())
-  number       String       @unique
-  status       SaleStatus   @default(PENDING)
+  id           String     @id @default(cuid())
+  number       String     @unique
+  status       SaleStatus @default(PENDING)
   clientId     String
   userId       String
   companyId    String
   warehouseId  String?
-  saleDate     DateTime     @default(now())
+  saleDate     DateTime   @default(now())
   deliveryDate DateTime?
-  subtotal     Float        @default(0)
-  discount     Float        @default(0)
-  tax          Float        @default(0)
-  total        Float        @default(0)
-  currency     String       @default("USD")
-  exchangeRate Float        @default(1)
+  subtotal     Float      @default(0)
+  discount     Float      @default(0)
+  tax          Float      @default(0)
+  total        Float      @default(0)
+  currency     String     @default("USD")
+  exchangeRate Float      @default(1)
   commission   Float?
   notes        String?
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
   taxAmount    Float?
   taxName      String?
   taxRate      Float?
-  
-  documents    Document[]
-  payments     Payment[]
-  client       Client       @relation(fields: [clientId], references: [id])
-  company      Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  user         User         @relation(fields: [userId], references: [id])
-  warehouse    Warehouse?   @relation(fields: [warehouseId], references: [id])
-  details      SaleDetail[]
+
+  documents Document[]
+  payments  Payment[]
+  client    Client       @relation(fields: [clientId], references: [id])
+  company   Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user      User         @relation(fields: [userId], references: [id])
+  warehouse Warehouse?   @relation(fields: [warehouseId], references: [id])
+  details   SaleDetail[]
 
   @@map("sales")
 }
@@ -552,33 +561,33 @@ model SaleDetail {
   total     Float    @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
-  product   Product  @relation(fields: [productId], references: [id])
-  sale      Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
-  variant   Variant? @relation(fields: [variantId], references: [id])
+
+  product Product  @relation(fields: [productId], references: [id])
+  sale    Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  variant Variant? @relation(fields: [variantId], references: [id])
 
   @@map("sale_details")
 }
 
 model Payment {
-  id          String       @id @default(cuid())
+  id          String      @id @default(cuid())
   type        PaymentType
-  amount      Float        @default(0)
+  amount      Float       @default(0)
   reference   String?
   purchaseId  String?
   saleId      String?
-  paymentDate DateTime     @default(now())
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  
-  purchase    Purchase?    @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
-  sale        Sale?        @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  paymentDate DateTime    @default(now())
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  purchase Purchase? @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  sale     Sale?     @relation(fields: [saleId], references: [id], onDelete: Cascade)
 
   @@map("payments")
 }
 
 model Document {
-  id         String    @id @default(cuid())
+  id         String   @id @default(cuid())
   type       String
   name       String
   url        String
@@ -586,29 +595,29 @@ model Document {
   supplierId String?
   purchaseId String?
   saleId     String?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  
-  client     Client?   @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  purchase   Purchase? @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
-  sale       Sale?     @relation(fields: [saleId], references: [id], onDelete: Cascade)
-  supplier   Supplier? @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  client   Client?   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  purchase Purchase? @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  sale     Sale?     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  supplier Supplier? @relation(fields: [supplierId], references: [id], onDelete: Cascade)
 
   @@map("documents")
 }
 
 model Setting {
-  id                     String   @id @default(cuid())
-  companyId              String   @unique
-  allowNegativeInventory Boolean  @default(false)
+  id                     String     @id @default(cuid())
+  companyId              String     @unique
+  allowNegativeInventory Boolean    @default(false)
   defaultCostMethod      CostMethod @default(FIFO)
-  taxIncluded            Boolean  @default(false)
-  currency               String   @default("USD")
-  timezone               String   @default("UTC")
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
-  
-  company                Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  taxIncluded            Boolean    @default(false)
+  currency               String     @default("USD")
+  timezone               String     @default("UTC")
+  createdAt              DateTime   @default(now())
+  updatedAt              DateTime   @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@map("settings")
 }
@@ -625,24 +634,24 @@ model Currency {
   companyId     String
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
-  
-  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@unique([code, companyId])
   @@map("currencies")
 }
 
 model CountryTax {
-  id          String    @id @default(cuid())
-  country     String    @unique
+  id          String   @id @default(cuid())
+  country     String   @unique
   taxName     String
   taxRate     Float
   description String?
-  isActive    Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  
-  companies   Company[]
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  companies Company[]
 
   @@map("country_taxes")
 }
@@ -655,8 +664,8 @@ model ReportSetting {
   config    Json?    @default("{}")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
-  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@unique([companyId, reportId])
   @@map("report_settings")
@@ -677,8 +686,8 @@ model SecuritySettings {
   maxLoginAttempts      Int      @default(5)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
-  
-  company               Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@map("security_settings")
 }
@@ -697,8 +706,8 @@ model UserSession {
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-  
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([sessionToken])
@@ -715,8 +724,8 @@ model LoginAttempt {
   status    String
   timestamp DateTime @default(now())
   createdAt DateTime @default(now())
-  
-  user      User?    @relation(fields: [userId], references: [id])
+
+  user User? @relation(fields: [userId], references: [id])
 
   @@index([email])
   @@index([userId])
@@ -729,17 +738,17 @@ model LoginAttempt {
 // ============================================================
 
 model Table {
-  id          String        @id @default(cuid())
-  number      String
-  capacity    Int           @default(4)
-  status      TableStatus   @default(AVAILABLE)
-  location    String?
-  companyId   String
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  
-  company     Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  diners      Diner[]
+  id        String      @id @default(cuid())
+  number    String
+  capacity  Int         @default(4)
+  status    TableStatus @default(AVAILABLE)
+  location  String?
+  companyId String
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  diners  Diner[]
 
   @@unique([companyId, number])
   @@index([companyId])
@@ -748,59 +757,20 @@ model Table {
 }
 
 model Diner {
-  id          String    @id @default(cuid())
-  tableId     String
-  name        String?
-  active      Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  
-  table       Table     @relation(fields: [tableId], references: [id], onDelete: Cascade)
-  orders      Order[]
+  id        String   @id @default(cuid())
+  tableId   String
+  name      String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  table  Table   @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  orders Order[]
+   allergies   DinerAllergy[]
 
   @@index([tableId])
   @@index([active])
   @@map("diners")
-}
-
-model Recipe {
-  id          String            @id @default(cuid())
-  name        String
-  description String?
-  yield       Float             @default(1)
-  unit        String            @default("unidad")
-  prepTime    Int?              // minutos
-  instructions String?
-  isActive    Boolean           @default(true)
-  companyId   String
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-  
-  company     Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  ingredients RecipeIngredient[]
-
-  @@index([companyId])
-  @@index([isActive])
-  @@map("recipes")
-}
-
-model RecipeIngredient {
-  id                String    @id @default(cuid())
-  recipeId          String
-  productId         String
-  quantity          Float
-  unit              String
-  consumeInventory  Boolean   @default(true)
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-  
-  recipe            Recipe    @relation(fields: [recipeId], references: [id], onDelete: Cascade)
-  product           Product   @relation(fields: [productId], references: [id])
-
-  @@unique([recipeId, productId])
-  @@index([recipeId])
-  @@index([productId])
-  @@map("recipe_ingredients")
 }
 
 model Order {
@@ -815,6 +785,7 @@ model Order {
   diner       Diner         @relation(fields: [dinerId], references: [id], onDelete: Cascade)
   items       OrderItem[]
   payments    RestaurantPayment[]
+  audit       OrderAudit[]  // ✅ Correcto: plural
 
   @@index([dinerId])
   @@index([status])
@@ -822,37 +793,255 @@ model Order {
 }
 
 model OrderItem {
-  id          String    @id @default(cuid())
-  orderId     String
-  productId   String
-  variantId   String?
-  quantity    Float
-  unitPrice   Float
-  subtotal    Float
-  notes       String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  
-  order       Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product     Product   @relation(fields: [productId], references: [id])
-  variant     Variant?  @relation(fields: [variantId], references: [id])
+  id        String   @id @default(cuid())
+  orderId   String
+  productId String
+  variantId String?
+  quantity  Float
+  unitPrice Float
+  subtotal  Float
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product  @relation(fields: [productId], references: [id])
+  variant Variant? @relation(fields: [variantId], references: [id])
 
   @@index([orderId])
   @@map("order_items")
 }
 
 model RestaurantPayment {
-  id          String          @id @default(cuid())
-  orderId     String
-  amount      Float
-  method      PaymentMethod
-  reference   String?
-  status      String          @default("COMPLETED")
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-  
-  order       Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  id        String        @id @default(cuid())
+  orderId   String
+  amount    Float
+  method    PaymentMethod
+  reference String?
+  status    String        @default("COMPLETED")
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
   @@map("restaurant_payments")
+}
+
+// ============================================================
+// MODELOS DE INGREDIENTES Y RECETAS
+// ============================================================
+
+model Ingredient {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  productId   String? // Referencia al Producto del ERP
+  unit        String   @default("unidad")
+  isActive    Boolean  @default(true)
+  companyId   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relaciones
+  company           Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  product           Product?             @relation(fields: [productId], references: [id])
+  allergens         IngredientAllergen[]
+  recipeIngredients RecipeIngredient[]
+
+  @@map("ingredients")
+}
+
+model Recipe {
+  id           String   @id @default(cuid())
+  name         String
+  description  String?
+  yield        Float    @default(1)
+  unit         String   @default("unidad")
+  prepTime     Int? // minutos
+  instructions String?
+  isActive     Boolean  @default(true)
+  companyId    String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  company     Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  ingredients RecipeIngredient[]
+  menuItems   MenuItem[]
+
+  @@index([companyId])
+  @@index([isActive])
+  @@map("recipes")
+}
+
+model RecipeIngredient {
+  id                String    @id @default(cuid())
+  recipeId          String
+  ingredientId      String    // ← Este campo DEBE existir
+  quantity          Float
+  unit              String
+  consumeInventory  Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  recipe            Recipe    @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  ingredient        Ingredient @relation(fields: [ingredientId], references: [id])
+  
+  @@unique([recipeId, ingredientId])
+  @@map("recipe_ingredients")
+}
+
+model MenuItem {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  price       Float
+  recipeId    String? // Opcional: plato simple sin receta
+  companyId   String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relaciones
+  company            Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  recipe             Recipe?              @relation(fields: [recipeId], references: [id])
+  allergens          MenuItemAllergen[]
+  dietaryTags        MenuItemDietaryTag[]
+  crossContamination CrossContamination[]
+
+  @@map("menu_items")
+}
+
+// ============================================================
+// ALÉRGENOS Y RESTRICCIONES DIETÉTICAS
+// ============================================================
+
+model Allergen {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  description String?
+  icon        String?
+  color       String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  ingredients  IngredientAllergen[]
+  menuItems    MenuItemAllergen[]
+  crossContamination CrossContamination[]
+  dinerAllergies DinerAllergy[]
+
+  @@map("allergens")
+}
+
+model DietaryTag {
+  id          String   @id @default(cuid())
+  code        String   @unique // VEGETARIAN, VEGAN, etc.
+  name        String
+  description String?
+  icon        String?
+  color       String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relaciones
+  menuItems MenuItemDietaryTag[]
+
+  @@map("dietary_tags")
+}
+
+model IngredientAllergen {
+  id           String   @id @default(cuid())
+  ingredientId String
+  allergenId   String
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+  allergen   Allergen   @relation(fields: [allergenId], references: [id], onDelete: Cascade)
+
+  @@unique([ingredientId, allergenId])
+  @@map("ingredient_allergens")
+}
+
+model MenuItemAllergen {
+  id         String   @id @default(cuid())
+  menuItemId String
+  allergenId String
+  source     String // "ingredient", "recipe", "manual"
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  menuItem MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  allergen Allergen @relation(fields: [allergenId], references: [id], onDelete: Cascade)
+
+  @@unique([menuItemId, allergenId])
+  @@map("menu_item_allergens")
+}
+
+model MenuItemDietaryTag {
+  id           String   @id @default(cuid())
+  menuItemId   String
+  dietaryTagId String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  menuItem   MenuItem   @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  dietaryTag DietaryTag @relation(fields: [dietaryTagId], references: [id], onDelete: Cascade)
+
+  @@unique([menuItemId, dietaryTagId])
+  @@map("menu_item_dietary_tags")
+}
+
+model CrossContamination {
+  id          String                @id @default(cuid())
+  menuItemId  String
+  allergenId  String
+  description String? // "Se utiliza la misma freidora para productos empanizados"
+  severity    ContaminationSeverity @default(MEDIUM)
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  menuItem MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  allergen Allergen @relation(fields: [allergenId], references: [id], onDelete: Cascade)
+
+  @@unique([menuItemId, allergenId])
+  @@map("cross_contamination")
+}
+// ============================================================
+// AUDITORÍA DE PEDIDOS (Nuevo)
+// ============================================================
+
+model OrderAudit {
+  id          String    @id @default(cuid())
+  orderId     String
+  action      String
+  description String?
+  details     Json?
+  userId      String
+  createdAt   DateTime  @default(now())
+  
+  order       Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id])
+
+  @@index([orderId])
+  @@index([createdAt])
+  @@map("order_audits")
+}
+model DinerAllergy {
+  id          String   @id @default(cuid())
+  dinerId     String
+  allergenId  String
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  diner       Diner    @relation(fields: [dinerId], references: [id], onDelete: Cascade)
+  allergen    Allergen @relation(fields: [allergenId], references: [id], onDelete: Cascade)
+
+  @@unique([dinerId, allergenId])
+  @@map("diner_allergies")
 }
