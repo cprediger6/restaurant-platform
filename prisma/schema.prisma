@@ -197,7 +197,7 @@ model User {
   sales              Sale[]
   company            Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
   sessions           UserSession[]
-  orderAudits         OrderAudit[] 
+  orderAudits        OrderAudit[]
 
   @@map("users")
 }
@@ -271,6 +271,8 @@ model Product {
   variants        Variant[]
   ingredients     Ingredient[] // Relación con ingredientes del restaurante
   orderItems      OrderItem[]
+  recipeId        String? // Referencia a la receta
+  recipe          Recipe?          @relation(fields: [recipeId], references: [id])
 
   @@map("products")
 }
@@ -764,9 +766,9 @@ model Diner {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  table  Table   @relation(fields: [tableId], references: [id], onDelete: Cascade)
-  orders Order[]
-   allergies   DinerAllergy[]
+  table     Table          @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  orders    Order[]
+  allergies DinerAllergy[]
 
   @@index([tableId])
   @@index([active])
@@ -774,18 +776,18 @@ model Diner {
 }
 
 model Order {
-  id          String        @id @default(cuid())
-  dinerId     String
-  status      OrderStatus   @default(PENDING)
-  total       Float         @default(0)
-  notes       String?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  
-  diner       Diner         @relation(fields: [dinerId], references: [id], onDelete: Cascade)
-  items       OrderItem[]
-  payments    RestaurantPayment[]
-  audit       OrderAudit[]  // ✅ Correcto: plural
+  id        String      @id @default(cuid())
+  dinerId   String
+  status    OrderStatus @default(PENDING)
+  total     Float       @default(0)
+  notes     String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  diner    Diner               @relation(fields: [dinerId], references: [id], onDelete: Cascade)
+  items    OrderItem[]
+  payments RestaurantPayment[]
+  audit    OrderAudit[] // ✅ Correcto: plural
 
   @@index([dinerId])
   @@index([status])
@@ -833,17 +835,17 @@ model RestaurantPayment {
 // ============================================================
 
 model Ingredient {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  productId   String? // Referencia al Producto del ERP
-  unit        String   @default("unidad")
-  isActive    Boolean  @default(true)
-  companyId   String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id               String   @id @default(cuid())
+  name             String
+  description      String?
+  productId        String? // Referencia al Producto del ERP (para saber el stock)
+  unit             String   @default("unidad") // unidad, gramos, mililitros, etc.
+  conversionFactor Float? // Factor de conversión a unidad de inventario
+  isActive         Boolean  @default(true)
+  companyId        String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-  // Relaciones
   company           Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
   product           Product?             @relation(fields: [productId], references: [id])
   allergens         IngredientAllergen[]
@@ -856,9 +858,9 @@ model Recipe {
   id           String   @id @default(cuid())
   name         String
   description  String?
-  yield        Float    @default(1)
+  yield        Float    @default(1) // Cantidad que produce la receta
   unit         String   @default("unidad")
-  prepTime     Int? // minutos
+  prepTime     Int?
   instructions String?
   isActive     Boolean  @default(true)
   companyId    String
@@ -867,6 +869,7 @@ model Recipe {
 
   company     Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
   ingredients RecipeIngredient[]
+  products    Product[]
   menuItems   MenuItem[]
 
   @@index([companyId])
@@ -875,18 +878,18 @@ model Recipe {
 }
 
 model RecipeIngredient {
-  id                String    @id @default(cuid())
-  recipeId          String
-  ingredientId      String    // ← Este campo DEBE existir
-  quantity          Float
-  unit              String
-  consumeInventory  Boolean   @default(true)
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-  
-  recipe            Recipe    @relation(fields: [recipeId], references: [id], onDelete: Cascade)
-  ingredient        Ingredient @relation(fields: [ingredientId], references: [id])
-  
+  id               String   @id @default(cuid())
+  recipeId         String
+  ingredientId     String
+  quantity         Float // Cantidad necesaria para la receta
+  unit             String // unidad, gramos, mililitros, etc.
+  consumeInventory Boolean  @default(true) // Si se descuenta del inventario
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  recipe     Recipe     @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id])
+
   @@unique([recipeId, ingredientId])
   @@map("recipe_ingredients")
 }
@@ -927,10 +930,10 @@ model Allergen {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  ingredients  IngredientAllergen[]
-  menuItems    MenuItemAllergen[]
+  ingredients        IngredientAllergen[]
+  menuItems          MenuItemAllergen[]
   crossContamination CrossContamination[]
-  dinerAllergies DinerAllergy[]
+  dinerAllergies     DinerAllergy[]
 
   @@map("allergens")
 }
@@ -1011,36 +1014,38 @@ model CrossContamination {
   @@unique([menuItemId, allergenId])
   @@map("cross_contamination")
 }
+
 // ============================================================
 // AUDITORÍA DE PEDIDOS (Nuevo)
 // ============================================================
 
 model OrderAudit {
-  id          String    @id @default(cuid())
+  id          String   @id @default(cuid())
   orderId     String
   action      String
   description String?
   details     Json?
   userId      String
-  createdAt   DateTime  @default(now())
-  
-  order       Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  user        User      @relation(fields: [userId], references: [id])
+  createdAt   DateTime @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id])
 
   @@index([orderId])
   @@index([createdAt])
   @@map("order_audits")
 }
-model DinerAllergy {
-  id          String   @id @default(cuid())
-  dinerId     String
-  allergenId  String
-  notes       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
 
-  diner       Diner    @relation(fields: [dinerId], references: [id], onDelete: Cascade)
-  allergen    Allergen @relation(fields: [allergenId], references: [id], onDelete: Cascade)
+model DinerAllergy {
+  id         String   @id @default(cuid())
+  dinerId    String
+  allergenId String
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  diner    Diner    @relation(fields: [dinerId], references: [id], onDelete: Cascade)
+  allergen Allergen @relation(fields: [allergenId], references: [id], onDelete: Cascade)
 
   @@unique([dinerId, allergenId])
   @@map("diner_allergies")

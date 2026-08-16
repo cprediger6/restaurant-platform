@@ -8,6 +8,52 @@ import {
   Prisma
 } from '@prisma/client'
 
+// Definir tipos auxiliares
+interface StockDetail {
+  inventoryItemId: string
+  warehouseId: string
+  warehouseName: string
+  currentStock: number
+  availableStock: number
+  lastCost: number | null
+  averageCost: number | null
+}
+
+interface IngredientStock {
+  ingredientId: string
+  ingredientName: string
+  productId: string | null
+  requiredQuantity: number
+  unit: string
+  totalStock: number
+  isAvailable: boolean
+  stockDetails: StockDetail[]
+}
+
+interface RecipeStock {
+  recipeName: string
+  ingredients: IngredientStock[]
+  allAvailable: boolean
+}
+
+interface CompanyStockItem {
+  productId: string
+  productName: string
+  sku: string
+  variantName: string | null
+  warehouseName: string
+  currentStock: number
+  availableStock: number
+  lastCost: number | null
+  totalValue: number
+}
+
+interface CompanyStockSummary {
+  totalItems: number
+  totalValue: number
+  items: CompanyStockItem[]
+}
+
 export class InventoryService {
   // ============================================================
   // GESTIÓN DE ITEMS DE INVENTARIO
@@ -717,6 +763,158 @@ export class InventoryService {
       availableStock: inventoryItem.availableStock,
       requested: quantity,
       difference: inventoryItem.availableStock - quantity
+    }
+  }
+
+  // ============================================================
+  // NUEVO: CONSULTAR STOCK DE UN PRODUCTO (para ingredientes)
+  // ============================================================
+  async getProductStock(productId: string) {
+    const inventoryItems = await prisma.inventoryItem.findMany({
+      where: {
+        productId,
+        currentStock: { gt: 0 }
+      },
+      include: {
+        warehouse: true
+      },
+      orderBy: { createdAt: 'asc' }
+    })
+
+    const totalStock = inventoryItems.reduce((sum: number, item: any) => sum + item.currentStock, 0)
+
+    const items: StockDetail[] = inventoryItems.map((item: any) => ({
+      inventoryItemId: item.id,
+      warehouseId: item.warehouseId,
+      warehouseName: item.warehouse?.name || 'Bodega desconocida',
+      currentStock: item.currentStock,
+      availableStock: item.availableStock,
+      lastCost: item.lastCost,
+      averageCost: item.averageCost
+    }))
+
+    return {
+      productId,
+      totalStock,
+      items
+    }
+  }
+
+  // ============================================================
+  // NUEVO: OBTENER STOCK DE INGREDIENTES PARA UNA RECETA
+  // ============================================================
+  async getRecipeIngredientsStock(recipeId: string): Promise<RecipeStock> {
+    const recipe = await prisma.recipe.findUnique({
+      where: { id: recipeId },
+      include: {
+        ingredients: {
+          include: {
+            ingredient: {
+              include: {
+                product: {
+                  include: {
+                    inventory: {
+                      include: {
+                        warehouse: true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    })
+
+    if (!recipe) {
+      throw new Error('Receta no encontrada')
+    }
+
+    const ingredientsStock: IngredientStock[] = []
+
+    for (const recipeIngredient of recipe.ingredients || []) {
+      const ingredient = recipeIngredient.ingredient
+      let totalStock = 0
+      let stockDetails: StockDetail[] = []
+
+      if (ingredient?.productId) {
+        const productStock = await this.getProductStock(ingredient.productId)
+        totalStock = productStock.totalStock
+        stockDetails = productStock.items
+      }
+
+      ingredientsStock.push({
+        ingredientId: ingredient.id,
+        ingredientName: ingredient.name,
+        productId: ingredient.productId || null,
+        requiredQuantity: recipeIngredient.quantity,
+        unit: recipeIngredient.unit,
+        totalStock,
+        isAvailable: totalStock >= recipeIngredient.quantity,
+        stockDetails
+      })
+    }
+
+    return {
+      recipeName: recipe.name,
+      ingredients: ingredientsStock,
+      allAvailable: ingredientsStock.every((i: IngredientStock) => i.isAvailable)
+    }
+  }
+
+  // ============================================================
+  // NUEVO: OBTENER STOCK TOTAL DE LA EMPRESA
+  // ============================================================
+  async getCompanyStockSummary(companyId: string): Promise<CompanyStockSummary> {
+    const inventoryItems = await prisma.inventoryItem.findMany({
+      where: {
+        warehouse: {
+          companyId
+        }
+      },
+      include: {
+        product: {
+          select: {
+            id: true,
+            name: true,
+            sku: true
+          }
+        },
+        variant: {
+          select: {
+            id: true,
+            name: true,
+            value: true
+          }
+        },
+        warehouse: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
+      }
+    })
+
+    const items: CompanyStockItem[] = inventoryItems.map((item: any) => ({
+      productId: item.productId,
+      productName: item.product?.name || 'Producto desconocido',
+      sku: item.product?.sku || '',
+      variantName: item.variant ? `${item.variant.name}: ${item.variant.value}` : null,
+      warehouseName: item.warehouse?.name || 'Bodega desconocida',
+      currentStock: item.currentStock,
+      availableStock: item.availableStock,
+      lastCost: item.lastCost,
+      totalValue: item.currentStock * (item.lastCost || 0)
+    }))
+
+    const totalValue = items.reduce((sum: number, item: CompanyStockItem) => sum + item.totalValue, 0)
+
+    return {
+      totalItems: items.length,
+      totalValue,
+      items
     }
   }
 }
