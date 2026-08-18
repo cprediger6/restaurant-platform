@@ -1,66 +1,126 @@
 // src/app/api/orders/route.ts
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth/auth.config'
-import { OrderService } from '@/lib/services/orders.service'
-
-const orderService = new OrderService()
+import { prisma } from '@/lib/db/prisma-client'
+import { OrderStatus } from '@prisma/client'
 
 export async function GET(request: NextRequest) {
-  const session = await getServerSession(authOptions)
-  
-  if (!session?.user) {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-  }
-
-  const searchParams = request.nextUrl.searchParams
-  const dinerId = searchParams.get('dinerId')
-
-  if (!dinerId) {
-    return NextResponse.json(
-      { error: 'dinerId es requerido' },
-      { status: 400 }
-    )
-  }
-
   try {
-    const orders = await orderService.getOrdersByDiner(dinerId)
+    const searchParams = request.nextUrl.searchParams
+    const dinerId = searchParams.get('dinerId')
+    const status = searchParams.get('status') as OrderStatus | null
+
+    if (!dinerId) {
+      return NextResponse.json(
+        { error: 'Se requiere dinerId' },
+        { status: 400 }
+      )
+    }
+
+    const where: any = { dinerId }
+    if (status) {
+      where.status = status
+    }
+
+    const orders = await prisma.order.findMany({
+      where,
+      include: {
+        items: {
+          include: {
+            product: {
+              include: {
+                category: true
+              }
+            },
+            variant: true
+          }
+        },
+        diner: {
+          include: {
+            table: true
+          }
+        },
+        payments: true
+      },
+      orderBy: { createdAt: 'desc' }
+    })
+
     return NextResponse.json(orders)
   } catch (error) {
     console.error('Error en GET /api/orders:', error)
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Error al obtener pedidos' },
+      { error: 'Error al obtener pedidos' },
       { status: 500 }
     )
   }
 }
 
 export async function POST(request: NextRequest) {
-  const session = await getServerSession(authOptions)
-  
-  if (!session?.user) {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-  }
-
   try {
     const body = await request.json()
-    const { dinerId } = body
+    const { dinerId, notes } = body
 
     if (!dinerId) {
       return NextResponse.json(
-        { error: 'dinerId es requerido' },
+        { error: 'Se requiere dinerId' },
         { status: 400 }
       )
     }
 
-    const order = await orderService.createOrder(dinerId)
+    const diner = await prisma.diner.findUnique({
+      where: { id: dinerId },
+      include: { table: true }
+    })
+
+    if (!diner || !diner.active) {
+      return NextResponse.json(
+        { error: 'Comensal no encontrado o inactivo' },
+        { status: 404 }
+      )
+    }
+
+    const existingOrder = await prisma.order.findFirst({
+      where: {
+        dinerId,
+        status: {
+          in: [OrderStatus.PENDING, OrderStatus.IN_PREPARATION, OrderStatus.READY]
+        }
+      }
+    })
+
+    if (existingOrder) {
+      return NextResponse.json(
+        { error: 'El comensal ya tiene un pedido activo' },
+        { status: 400 }
+      )
+    }
+
+    const order = await prisma.order.create({
+      data: {
+        dinerId,
+        status: OrderStatus.PENDING,
+        total: 0,
+        notes: notes || ''
+      },
+      include: {
+        items: true,
+        diner: {
+          include: {
+            table: true
+          }
+        }
+      }
+    })
+
     return NextResponse.json(order, { status: 201 })
   } catch (error) {
     console.error('Error en POST /api/orders:', error)
+    if (error instanceof Error) {
+      return NextResponse.json({ error: error.message }, { status: 400 })
+    }
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Error al crear pedido' },
-      { status: 400 }
+      { error: 'Error al crear pedido' },
+      { status: 500 }
     )
   }
 }

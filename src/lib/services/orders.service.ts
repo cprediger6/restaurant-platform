@@ -1103,7 +1103,29 @@ export class OrderService {
       }
     })
   }
+// src/lib/services/order.service.ts (agregar método)
 
+// ============================================================
+// ACTUALIZAR NOTAS DEL PEDIDO
+// ============================================================
+async updateOrderNotes(orderId: string, notes: string) {
+  const order = await prisma.order.findUnique({
+    where: { id: orderId }
+  })
+
+  if (!order) {
+    throw new Error('Pedido no encontrado')
+  }
+
+  if (order.status === OrderStatus.BILLED) {
+    throw new Error('Pedido ya facturado')
+  }
+
+  return await prisma.order.update({
+    where: { id: orderId },
+    data: { notes }
+  })
+}
   // ============================================================
   // OBTENER AUDITORÍA DE UN PEDIDO
   // ============================================================

@@ -1,50 +1,38 @@
-// src/app/api/orders/[orderId]/items/route.ts
+// src/app/api/orders/items/route.ts
 
 import { NextRequest, NextResponse } from 'next/server'
+import { orderService } from '@/lib/services/orders.service'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth/auth.config'
-import { OrderService } from '@/lib/services/orders.service'
 
-const orderService = new OrderService()
-
-// POST - Agregar item al pedido
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ orderId: string }> }
-) {
-  const session = await getServerSession(authOptions)
-
-  if (!session?.user) {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-  }
-
+export async function POST(request: NextRequest) {
   try {
-    const { orderId } = await params
-    const body = await request.json()
-    const { productId, variantId, quantity, notes, unitPrice } = body
-
-    if (!productId || !quantity) {
-      return NextResponse.json(
-        { error: 'productId y quantity son requeridos' },
-        { status: 400 }
-      )
+    const session = await getServerSession(authOptions)
+    if (!session?.user?.companyId) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
+    const body = await request.json()
+    
     const result = await orderService.addOrderItem({
-      orderId,
-      productId,
-      variantId,
-      quantity,
-      notes,
-      unitPrice
+      orderId: body.orderId,
+      productId: body.productId,
+      variantId: body.variantId,
+      quantity: body.quantity,
+      notes: body.notes || '', // ✅ Incluir notas del item
+      unitPrice: body.unitPrice,
+      userId: session.user.id
     })
 
     return NextResponse.json(result, { status: 201 })
   } catch (error) {
-    console.error('Error en POST /api/orders/[orderId]/items:', error)
+    console.error('Error en POST /api/orders/items:', error)
+    if (error instanceof Error) {
+      return NextResponse.json({ error: error.message }, { status: 400 })
+    }
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Error al agregar item' },
-      { status: 400 }
+      { error: 'Error al agregar item' },
+      { status: 500 }
     )
   }
 }

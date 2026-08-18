@@ -6,9 +6,11 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { Textarea } from '@/components/ui/Textarea'
 import { Badge } from '@/components/ui/Badge'
-import { Plus, Minus, Trash2, Search, X } from 'lucide-react'
-import { orderService } from '@/lib/services/orders.service'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/Dialog'
+import { Label } from '@/components/ui/Label'
+import { Plus, Minus, Trash2, Search, X, Edit2, AlertCircle } from 'lucide-react'
 
 interface DinerOrderProps {
   dinerId: string
@@ -16,15 +18,33 @@ interface DinerOrderProps {
   onOrderUpdate: () => void
 }
 
+interface CartItem {
+  productId: string
+  product: any
+  quantity: number
+  unitPrice: number
+  notes: string
+}
+
 export function DinerOrder({ dinerId, tableId, onOrderUpdate }: DinerOrderProps) {
   const [products, setProducts] = useState<any[]>([])
   const [categories, setCategories] = useState<string[]>([])
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const [searchTerm, setSearchTerm] = useState<string>('')
-  const [cart, setCart] = useState<any[]>([])
+  const [cart, setCart] = useState<CartItem[]>([])
   const [currentOrder, setCurrentOrder] = useState<any>(null)
   const [loading, setLoading] = useState<boolean>(true)
   const [submitting, setSubmitting] = useState<boolean>(false)
+  const [orderNotes, setOrderNotes] = useState<string>('')
+
+  // Estado para el diálogo de notas del item
+  const [showItemNotesDialog, setShowItemNotesDialog] = useState<boolean>(false)
+  const [editingItemIndex, setEditingItemIndex] = useState<number>(-1)
+  const [itemNotes, setItemNotes] = useState<string>('')
+
+  // Estado para el diálogo de notas del pedido
+  const [showOrderNotesDialog, setShowOrderNotesDialog] = useState<boolean>(false)
+  const [tempOrderNotes, setTempOrderNotes] = useState<string>('')
 
   useEffect(() => {
     fetchProducts()
@@ -36,16 +56,13 @@ export function DinerOrder({ dinerId, tableId, onOrderUpdate }: DinerOrderProps)
     try {
       const response = await fetch('/api/products?limit=100&isActive=true')
       if (!response.ok) throw new Error('Error al cargar productos')
-      
+
       const data = await response.json()
-      
-      // ✅ CORRECCIÓN: La API devuelve { items: [], total: 0, ... }
       const productList = data.items || data || []
       const productsArray = Array.isArray(productList) ? productList : []
-      
+
       setProducts(productsArray)
-      
-      // Extraer categorías únicas
+
       const uniqueCategories = Array.from(
         new Set(productsArray.map((p: any) => p.category?.name).filter(Boolean))
       ) as string[]
@@ -60,21 +77,20 @@ export function DinerOrder({ dinerId, tableId, onOrderUpdate }: DinerOrderProps)
 
   const fetchCurrentOrder = async () => {
     try {
-      // Obtener pedidos activos del comensal
       const response = await fetch(`/api/orders?dinerId=${dinerId}&status=PENDING`)
       if (!response.ok) throw new Error('Error al cargar pedido')
-      
+
       const data = await response.json()
-      // Si hay un pedido activo, usarlo
       if (data && data.length > 0) {
-        setCurrentOrder(data[0])
-        // Cargar items del pedido al carrito
-        setCart(data[0].items || [])
+        const order = data[0]
+        setCurrentOrder(order)
+        setOrderNotes(order.notes || '')
+        setCart(order.items || [])
       } else {
-        // Crear nuevo pedido
         const newOrder = await createNewOrder()
         setCurrentOrder(newOrder)
         setCart([])
+        setOrderNotes('')
       }
     } catch (error) {
       console.error('Error fetching current order:', error)
@@ -132,62 +148,130 @@ export function DinerOrder({ dinerId, tableId, onOrderUpdate }: DinerOrderProps)
     )
   }
 
-  const submitOrder = async () => {
-    if (!currentOrder || cart.length === 0) {
-      alert('No hay items en el carrito')
-      return
-    }
+  const openItemNotesDialog = (index: number) => {
+    setEditingItemIndex(index)
+    setItemNotes(cart[index]?.notes || '')
+    setShowItemNotesDialog(true)
+  }
 
-    setSubmitting(true)
-    try {
-      // Agregar cada item al pedido
-      for (const item of cart) {
-        await fetch('/api/orders/items', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            orderId: currentOrder.id,
-            productId: item.productId,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            notes: item.notes,
-            userId: 'system' // O el usuario actual
-          })
-        })
+  const saveItemNotes = () => {
+    if (editingItemIndex >= 0 && editingItemIndex < cart.length) {
+      const updatedCart = [...cart]
+      updatedCart[editingItemIndex] = {
+        ...updatedCart[editingItemIndex],
+        notes: itemNotes
       }
+      setCart(updatedCart)
+    }
+    setShowItemNotesDialog(false)
+    setEditingItemIndex(-1)
+    setItemNotes('')
+  }
 
-      // Actualizar estado del pedido a IN_PREPARATION
-      await fetch(`/api/orders/${currentOrder.id}/status`, {
+  const saveOrderNotes = async () => {
+  if (!currentOrder) return
+  
+  try {
+    const response = await fetch(`/api/orders/${currentOrder.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ notes: tempOrderNotes })
+    })
+    
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error || 'Error al guardar notas')
+    }
+    
+    setOrderNotes(tempOrderNotes)
+    setCurrentOrder({ ...currentOrder, notes: tempOrderNotes })
+    setShowOrderNotesDialog(false)
+    alert('✅ Notas del pedido guardadas')
+  } catch (error) {
+    console.error('Error saving order notes:', error)
+    alert(`❌ Error al guardar notas: ${error instanceof Error ? error.message : 'Error desconocido'}`)
+  }
+}
+
+  const submitOrder = async () => {
+  if (!currentOrder || cart.length === 0) {
+    alert('No hay items en el carrito')
+    return
+  }
+
+  setSubmitting(true)
+  try {
+    // 1. Guardar notas del pedido si hay cambios
+    if (orderNotes !== currentOrder?.notes) {
+      const response = await fetch(`/api/orders/${currentOrder.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'IN_PREPARATION' })
+        body: JSON.stringify({ notes: orderNotes })
       })
-
-      alert('✅ Pedido enviado a cocina')
-      setCart([])
-      onOrderUpdate()
       
-      // Recargar el pedido actual
-      await fetchCurrentOrder()
-    } catch (error) {
-      console.error('Error submitting order:', error)
-      alert('❌ Error al enviar el pedido')
-    } finally {
-      setSubmitting(false)
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Error al guardar notas')
+      }
     }
+
+    // 2. Agregar cada item al pedido
+    for (const item of cart) {
+      const response = await fetch('/api/orders/items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: currentOrder.id,
+          productId: item.productId,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          notes: item.notes || '',
+          userId: 'system'
+        })
+      })
+      
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Error al agregar item')
+      }
+    }
+
+    // 3. Actualizar estado del pedido
+    const response = await fetch(`/api/orders/${currentOrder.id}/status`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'IN_PREPARATION' })
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error || 'Error al actualizar estado')
+    }
+
+    alert('✅ Pedido enviado a cocina')
+    setCart([])
+    setOrderNotes('')
+    onOrderUpdate()
+    
+    await fetchCurrentOrder()
+  } catch (error: any) {
+    console.error('Error submitting order:', error)
+    alert(`❌ Error al enviar el pedido: ${error.message}`)
+  } finally {
+    setSubmitting(false)
   }
+}
 
   const getTotal = () => {
     return cart.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0)
   }
 
-  // ✅ Aplicar filtros con array seguro
-  const filteredProducts = Array.isArray(products) 
+  const filteredProducts = Array.isArray(products)
     ? products.filter(p => {
-        const matchesCategory = selectedCategory === 'all' || p.category?.name === selectedCategory
-        const matchesSearch = p.name?.toLowerCase().includes(searchTerm.toLowerCase()) || false
-        return matchesCategory && matchesSearch
-      })
+      const matchesCategory = selectedCategory === 'all' || p.category?.name === selectedCategory
+      const matchesSearch = p.name?.toLowerCase().includes(searchTerm.toLowerCase()) || false
+      return matchesCategory && matchesSearch
+    })
     : []
 
   if (loading) {
@@ -224,11 +308,10 @@ export function DinerOrder({ dinerId, tableId, onOrderUpdate }: DinerOrderProps)
             <div className="flex flex-wrap gap-2 mb-4">
               <button
                 onClick={() => setSelectedCategory('all')}
-                className={`px-3 py-1 rounded-full text-sm ${
-                  selectedCategory === 'all'
+                className={`px-3 py-1 rounded-full text-sm ${selectedCategory === 'all'
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+                  }`}
               >
                 Todos
               </button>
@@ -236,11 +319,10 @@ export function DinerOrder({ dinerId, tableId, onOrderUpdate }: DinerOrderProps)
                 <button
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
-                  className={`px-3 py-1 rounded-full text-sm ${
-                    selectedCategory === cat
+                  className={`px-3 py-1 rounded-full text-sm ${selectedCategory === cat
                       ? 'bg-blue-600 text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
+                    }`}
                 >
                   {cat}
                 </button>
@@ -292,6 +374,28 @@ export function DinerOrder({ dinerId, tableId, onOrderUpdate }: DinerOrderProps)
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Notas del pedido */}
+            <div className="flex items-start gap-2 p-2 bg-yellow-50 rounded-lg border border-yellow-200">
+              <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium text-yellow-800">Notas del pedido</p>
+                <p className="text-xs text-yellow-700 truncate">
+                  {orderNotes || 'Sin notas especiales'}
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0 flex-shrink-0"
+                onClick={() => {
+                  setTempOrderNotes(orderNotes)
+                  setShowOrderNotesDialog(true)
+                }}
+              >
+                <Edit2 className="h-3 w-3" />
+              </Button>
+            </div>
+
             {cart.length === 0 ? (
               <p className="text-center text-gray-500 py-8">
                 No hay items en el pedido
@@ -300,38 +404,58 @@ export function DinerOrder({ dinerId, tableId, onOrderUpdate }: DinerOrderProps)
               <>
                 <div className="space-y-3 max-h-96 overflow-y-auto">
                   {cart.map((item, index) => (
-                    <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded-lg">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">{item.product?.name || 'Producto'}</p>
-                        <p className="text-sm text-gray-500">
-                          ${item.unitPrice.toFixed(2)} x {item.quantity}
-                        </p>
+                    <div key={index} className="bg-gray-50 p-2 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm truncate">{item.product?.name || 'Producto'}</p>
+                          <p className="text-sm text-gray-500">
+                            ${item.unitPrice.toFixed(2)} x {item.quantity}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 w-7 p-0"
+                            onClick={() => updateQuantity(item.productId, -1)}
+                          >
+                            <Minus className="h-3 w-3" />
+                          </Button>
+                          <span className="w-6 text-center text-sm font-medium">{item.quantity}</span>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 w-7 p-0"
+                            onClick={() => updateQuantity(item.productId, 1)}
+                          >
+                            <Plus className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 w-7 p-0 text-red-600 hover:text-red-700"
+                            onClick={() => removeFromCart(item.productId)}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1 flex-shrink-0">
+                      {/* Mostrar notas del item */}
+                      <div className="flex items-center justify-between mt-1">
+                        {item.notes ? (
+                          <p className="text-xs text-gray-500 truncate flex-1">
+                            📝 {item.notes}
+                          </p>
+                        ) : (
+                          <p className="text-xs text-gray-400 flex-1">Sin notas</p>
+                        )}
                         <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 w-7 p-0"
-                          onClick={() => updateQuantity(item.productId, -1)}
-                        >
-                          <Minus className="h-3 w-3" />
-                        </Button>
-                        <span className="w-6 text-center text-sm font-medium">{item.quantity}</span>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 w-7 p-0"
-                          onClick={() => updateQuantity(item.productId, 1)}
-                        >
-                          <Plus className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          size="sm"
                           variant="ghost"
-                          className="h-7 w-7 p-0 text-red-600 hover:text-red-700"
-                          onClick={() => removeFromCart(item.productId)}
+                          size="sm"
+                          className="h-5 w-5 p-0 flex-shrink-0"
+                          onClick={() => openItemNotesDialog(index)}
                         >
-                          <Trash2 className="h-3 w-3" />
+                          <Edit2 className="h-3 w-3 text-gray-400" />
                         </Button>
                       </div>
                     </div>
@@ -357,6 +481,80 @@ export function DinerOrder({ dinerId, tableId, onOrderUpdate }: DinerOrderProps)
           </CardContent>
         </Card>
       </div>
+
+      {/* Diálogo para notas del item */}
+      <Dialog open={showItemNotesDialog} onOpenChange={setShowItemNotesDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Notas del Item</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {editingItemIndex >= 0 && editingItemIndex < cart.length && (
+              <div>
+                <p className="text-sm font-medium">
+                  {cart[editingItemIndex]?.product?.name || 'Producto'}
+                </p>
+                <p className="text-sm text-gray-500">
+                  Cantidad: {cart[editingItemIndex]?.quantity}
+                </p>
+              </div>
+            )}
+            <div>
+              <Label htmlFor="itemNotes">Instrucciones especiales</Label>
+              <Textarea
+                id="itemNotes"
+                value={itemNotes}
+                onChange={(e) => setItemNotes(e.target.value)}
+                placeholder="Ej: Sin cebolla, bien cocido, extra queso, etc."
+                rows={4}
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                Ejemplos: "Sin cebolla", "Bien cocido", "Con extra queso", "Alergia al maní"
+              </p>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowItemNotesDialog(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={saveItemNotes}>
+                Guardar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo para notas del pedido */}
+      <Dialog open={showOrderNotesDialog} onOpenChange={setShowOrderNotesDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Notas del Pedido</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="orderNotes">Instrucciones generales</Label>
+              <Textarea
+                id="orderNotes"
+                value={tempOrderNotes}
+                onChange={(e) => setTempOrderNotes(e.target.value)}
+                placeholder="Ej: Alergia al gluten, sin picante, mesa cerca de la ventana, etc."
+                rows={4}
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                Estas notas aplican a todo el pedido. Para notas específicas por item, usa el botón de editar en cada producto.
+              </p>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowOrderNotesDialog(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={saveOrderNotes}>
+                Guardar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
